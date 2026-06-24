@@ -44,10 +44,9 @@ erDiagram
   Customer {
     ObjectId _id
     string   phone
+    string   name
     string   pinHash
     string   pocket
-    string   state
-    string   status
     date     createdAt
   }
   Officer {
@@ -402,15 +401,12 @@ erDiagram
 | Thuộc tính | Kiểu   | Mô tả & Ràng buộc |
 |------------|--------|-------------------|
 | `phone`    | String | Số điện thoại — unique index. Dùng trong fieldBuilder `queryPocketByPhone`. |
+| `name`     | String | Họ và tên của khách hàng. |
 | `pinHash`  | String | PIN đã hash (bcrypt). KHÔNG bao giờ lưu PIN thô. `needSecured = true` trong TransField. |
 | `pocket`   | String | FK = String(Pocket._id). Gán ngay khi đăng ký. Query trực tiếp không cần join. |
-| `state`    | String | Trạng thái nghiệp vụ: `active` / `locked`. Officer khoá → `locked`; customer không đăng nhập và không giao dịch được. |
-| `status`   | String | Trạng thái bản ghi: `active` / `inactive` (soft-delete). |
 | `createdAt`| Date   | Audit — thời điểm đăng ký. |
 
-> **Phân biệt `state` vs `status`:**
-> - `state` = nghiệp vụ (Officer khoá/mở): `active` → `locked`.
-> - `status` = bản ghi (soft-delete): `active` → `inactive`.
+> **Lưu ý Kiến trúc (Tinh gọn):** Customer không có `state` hay `status`. Vòng đời định danh gắn liền hoàn toàn với vòng đời của ví (Pocket). Officer muốn chặn giao dịch hoặc vô hiệu hoá người dùng sẽ thao tác trực tiếp trên Pocket.
 
 ---
 

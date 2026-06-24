@@ -1,111 +1,136 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --bg-color: #f0f4f8; /* Fresh light blue-gray background */
+  --border-color: #e2e8f0; /* Crisp light gray border */
+  --text-primary: #0f172a; /* Slate 900 */
+  --text-secondary: #64748b; /* Muted text */
+  --primary-accent: #0ea5e9; /* Premium Ocean Blue */
+  --row-hover: #f8fafc; /* Solid light gray hover */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-body {
+body, html, #root {
   margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+/* Base structural overrides (No glass, no blur) */
+.glass-card, .glass-sider, .glass-header {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 6px !important; /* Sharp, functional corners */
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+.glass-card {
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+.glass-sider {
+  background: #ffffff !important; /* Bright white sidebar */
+  border-right: 1px solid var(--border-color) !important;
+  border-radius: 0 !important; /* Flush sidebar */
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+.glass-header {
+  border-bottom: 1px solid var(--border-color) !important;
+  border-radius: 0 !important; /* Flush header */
+  box-shadow: none !important;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* Sharp, segmented control style Tabs */
+.vip-tabs .ant-tabs-nav::before {
+  border-bottom: 1px solid var(--border-color) !important;
 }
+.vip-tabs .ant-tabs-tab {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 4px 4px 0 0 !important; 
+  margin-right: 32px !important;
+  padding: 12px 0 !important;
+  transition: all 0.2s !important;
+}
+.vip-tabs .ant-tabs-tab:hover {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.vip-tabs .ant-tabs-tab-active {
+  background: transparent !important;
+  border-bottom: 2px solid var(--primary-accent) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.vip-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--primary-accent) !important;
+  font-weight: 600 !important;
+}
+
+/* High Contrast, Space-Rich Table */
+.smart-row td {
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 8px 12px !important; /* Compact breathing room */
+  background: #ffffff !important;
+  font-size: 13px !important;
+}
+.smart-row:hover > td {
+  background: var(--row-hover) !important;
+}
+
+/* Ghost Inputs - Visible but subtle */
+.smart-input {
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 4px !important;
+  padding: 2px 8px !important;
+  transition: all 0.2s;
+  font-size: 13px !important;
+}
+.smart-input:hover {
+  background: #ffffff !important;
+  border: 1px solid var(--border-color) !important;
+}
+.smart-input:focus, .smart-input.ant-select-focused .ant-select-selector {
+  border: 1px solid var(--primary-accent) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 1px var(--primary-accent) !important;
+}
+
+/* Ensure select borders behave the same way */
+.smart-input .ant-select-selector {
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 4px !important;
+}
+.smart-input:hover .ant-select-selector {
+  border-color: transparent !important; /* Rely on wrapper border */
+}
+
+/* Ant Design Table Overrides */
+.ant-table-wrapper .ant-table {
+  background: #ffffff !important;
+}
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: #fafafa !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 12px !important;
+  padding: 8px 12px !important;
+  white-space: nowrap !important; /* Prevent header text like 'Replace' from wrapping */
+}
+
+/* Reset Scrollbar to neutral */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }

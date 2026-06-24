@@ -13,7 +13,7 @@ Hệ thống được chia thành **3 miền lưu trữ tách biệt về bản 
 |------|-------|-----------|
 | **Configuration** | Cấu hình do Officer tạo: Service, TransField, TransValidation, TransDefinition | Đọc nhiều (Read-heavy). Dữ liệu ít thay đổi. Là "bản vẽ kỹ thuật" engine đọc tại runtime. |
 | **Ledger & Engine** | Trạng thái tài chính và luồng giao dịch: Pocket, PocketEntry, TransactionTrail, Transaction | ACID bắt buộc. Ghi nhiều (Write-heavy). Yêu cầu chính xác tuyệt đối. |
-| **Entity** | Định danh chủ thể: Customer, Officer, Biller, Currency | Ít thay đổi. Là nguồn gốc sinh ra Pocket và trigger giao dịch. |
+| **Entity** | Định danh chủ thể: Customer, Officer, Biller | Ít thay đổi. Là nguồn gốc sinh ra Pocket và trigger giao dịch. |
 
 > Tách 3 miền giúp scale độc lập: Config có thể cache; Ledger cần session transaction; Entity cần index tìm kiếm nhanh.
 
@@ -66,12 +66,7 @@ erDiagram
     string   pocket
     string   status
   }
-  Currency {
-    ObjectId _id
-    string   code
-    string   name
-    string   status
-  }
+
 
   %% MIEN LEDGER
   Pocket {
@@ -164,7 +159,7 @@ erDiagram
   %% QUAN HE
   Customer      ||--|| Pocket           : "1 customer - 1 pocket"
   Biller        ||--|| Pocket           : "1 biller - 1 pocket"
-  Currency      ||--o{ Pocket           : "denominates"
+
   Service       ||--o{ TransField       : "1 service - nhieu TransField"
   Service       ||--o{ TransValidation  : "1 service - nhieu TransValidation"
   Service       ||--|| TransDefinition  : "1 service - 1 TransDefinition"
@@ -312,7 +307,7 @@ erDiagram
 |------------|--------|-------------------|
 | `user`     | String | FK = String(Customer._id) hoặc String(Biller._id). NULL với ví System và Bank — dùng sparse index. |
 | `client`   | String | Loại chủ thể: `customer` / `biller` / `system` / `bank`. |
-| `currency` | String | Mã tiền tệ (VD: VND). FK = Currency.code. |
+| `currency` | String | Mã tiền tệ (VD: VND). Khai báo thẳng (hard-code) hoặc thông qua Config. |
 | `balance`  | Number | Số dư hiện tại. CHỈ cập nhật bằng `$inc` nguyên tử trong `session.withTransaction`. KHÔNG set trực tiếp. |
 | `checksum` | String | MD5(balance + user + muối cố định). Kiểm trước khi trả số dư cho Customer. Phát hiện sửa tay DB. |
 | `state`    | String | Runtime lock: `active` (bình thường) / `inProgress` (đang bị khoá tại Verify bước 1). Engine set `inProgress` → giải phóng tại bước 7 MỌI lối ra kể cả lỗi. |
@@ -446,102 +441,3 @@ erDiagram
 | `paymentUrl` | String | URL xác nhận thanh toán — engine gọi @Verify bước 5.1. |
 | `pocket`     | String | FK = String(Pocket._id). Tự sinh khi tạo Biller. Query trực tiếp không cần join. |
 | `status`     | String | `active` / `inactive`. Chỉ biller active mới nhận thanh toán. |
-
----
-
-#### Model: `Currency`
-
-> Bảng tra đơn vị tiền tệ. Mini-wallet dùng một loại (VND). Giữ để Pocket có tham chiếu rõ ràng.
-
-| Thuộc tính | Kiểu   | Mô tả & Ràng buộc |
-|------------|--------|-------------------|
-| `code`     | String | Mã ISO (VD: VND). unique index. |
-| `name`     | String | Tên đầy đủ (VD: Việt Nam Đồng). |
-| `status`   | String | `active` / `inactive`. |
-
----
-
-## 5. Ví dụ glSteps — 3 nghiệp vụ
-
-### P2P Transfer (phí cố định 100 VND)
-
-| order | amount   | debit (level:target)    | credit (level:target)             |
-|:-----:|----------|-------------------------|-----------------------------------|
-| 0     | AMOUNT   | productLevel : SENDERID | productLevel : RECEIVERID         |
-| 1     | DEBITFEE | productLevel : SENDERID | wallet : String(SYSTEM_POCKET_ID) |
-
-Kết quả mẫu (gửi 10.000, phí 100): Ví gửi −10.100 | Ví nhận +10.000 | Ví System +100.
-
-### Cash-in (miễn phí — Officer trigger, auth = NONE)
-
-| order | amount | debit (level:target)            | credit (level:target)     |
-|:-----:|--------|---------------------------------|---------------------------|
-| 0     | AMOUNT | wallet : String(BANK_POCKET_ID) | productLevel : RECEIVERID |
-
-Step phí không tồn tại vì fee.value = 0. Kết quả mẫu (nạp 100.000): Bank −100.000 | Ví khách +100.000.
-
-### Bill Payment (phí cố định 1.000 VND)
-
-| order | amount   | debit (level:target)    | credit (level:target)              |
-|:-----:|----------|-------------------------|------------------------------------|
-| 0     | AMOUNT   | productLevel : SENDERID | productLevel : RECEIVERID (Biller) |
-| 1     | DEBITFEE | productLevel : SENDERID | wallet : String(SYSTEM_POCKET_ID)  |
-
-Kết quả mẫu (hoá đơn 50.000, phí 1.000): Ví gửi −51.000 | Ví Biller +50.000 | Ví System +1.000.
-
----
-
-## 6. Tóm tắt Collections
-
-| Collection         | Miền          | Quan hệ chính | Ghi chú |
-|--------------------|---------------|---------------|---------|
-| customers          | Entity        | 1:1 → Pocket (via pocket field) | Nhiều doc |
-| officers           | Entity        | — | Ít doc; JWT stateless |
-| billers            | Entity        | 1:1 → Pocket (via pocket field) | Ít doc |
-| currencies         | Entity        | — | 1 doc (VND) |
-| pockets            | Ledger        | ← Customer / Biller | customers + billers + 2 (system, bank) |
-| pocketentries      | Ledger        | N:1 → Trail; N:1 → Pocket | Rất nhiều doc; immutable |
-| transactiontrails  | Ledger/Engine | 1:0-1 → Transaction; 1:N → PocketEntry | Mỗi Request tạo 1 doc |
-| transactions       | Ledger        | 1:1 ← Trail | Chỉ khi done |
-| services           | Config        | 1:N → TransField, TransValidation; 1:1 → TransDefinition | 3 doc ban đầu |
-| transfields        | Config        | N:1 → Service | Vài doc/service |
-| transvalidations   | Config        | N:1 → Service | Vài doc/service |
-| transdefinitions   | Config        | 1:1 ↔ Service | = số services |
-
----
-
-## 7. Index đề xuất (MongoDB)
-
-```js
-// ENTITY
-db.customers.createIndex({ phone: 1 }, { unique: true })
-db.billers.createIndex({ code: 1 }, { unique: true })
-db.currencies.createIndex({ code: 1 }, { unique: true })
-
-// LEDGER — POCKET
-db.pockets.createIndex({ user: 1 }, { sparse: true })          // sparse: user=null với System/Bank
-db.pockets.createIndex({ client: 1 })
-db.pockets.createIndex({ user: 1, client: 1 }, { sparse: true })
-
-// LEDGER — POCKETENTRY
-db.pocketentries.createIndex({ transRefId: 1 })
-db.pocketentries.createIndex({ debit: 1 })
-db.pocketentries.createIndex({ credit: 1 })
-
-// LEDGER — TRAIL & TRANSACTION
-db.transactiontrails.createIndex({ serviceId: 1, status: 1 })
-db.transactiontrails.createIndex({ status: 1, updatedAt: -1 }) // Officer xem Trail gần nhất
-db.transactions.createIndex({ transRefId: 1 }, { unique: true })
-db.transactions.createIndex({ sender: 1, createdAt: -1 })      // Customer xem lịch sử
-db.transactions.createIndex({ receiver: 1, createdAt: -1 })
-
-// CONFIG
-db.services.createIndex({ code: 1 }, { unique: true })
-db.transfields.createIndex({ service: 1, fieldName: 1 })
-db.transvalidations.createIndex({ service: 1, order: 1 })
-db.transdefinitions.createIndex({ service: 1 }, { unique: true })
-```
-
----
-
-*Output Tuần 2 — mục 1 (ERD + data dictionary). Tổng hợp từ cả 3 bản thiết kế, bám `WEEK2-DESIGN-BRIEF.md` mục 5-6.*

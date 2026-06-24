@@ -129,19 +129,21 @@ sequenceDiagram
     end
     
     TE->>B: Gọi Payment URL của Biller (kèm transRefId)
-    alt Biller báo lỗi (Bill fail)
-        B-->>TE: Fail
-        TE->>P: Mở khoá ví (isLocked=false, lockedByTransRefId=null)
+    alt Biller báo Timeout / Lỗi mạng (Bill fail)
+        B-->>TE: Timeout / Fail
+        TE->>P: Mở khoá ví (state = active)
         P-->>TE: Đã mở khoá
-        TE-->>A: Thông báo lỗi từ Biller (chờ xử lý hoàn tiền)
+        TE-->>A: Giao dịch đang xử lý (BillerRetryCron tiếp quản chạy ngầm)
     else Biller ghi nhận thành công
         B-->>TE: Success (billerRefId)
         TE->>T: Cập nhật Transaction (lưu kèm billerRefId)
-        TE->>P: Mở khoá ví (isLocked=false, lockedByTransRefId=null)
+        TE->>P: Mở khoá ví (state = active)
         P-->>TE: Đã mở khoá
         TE-->>A: Giao dịch thành công
     end
-    A-->>C: Hiển thị biên lai
+    A-->>C: Hiển thị trạng thái giao dịch
+    
+    Note over C, T: Xem thêm: EDGE-CASES-DESIGN.md để biết luồng chạy ngầm của Cronjob.
 ```
 
 ---

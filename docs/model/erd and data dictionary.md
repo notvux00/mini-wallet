@@ -45,6 +45,7 @@ erDiagram
     ObjectId _id
     string   phone
     string   name
+    string   passwordHash
     string   pinHash
     string   pocket
     date     createdAt
@@ -402,7 +403,8 @@ erDiagram
 |------------|--------|-------------------|
 | `phone`    | String | Số điện thoại — unique index. Dùng trong fieldBuilder `queryPocketByPhone`. |
 | `name`     | String | Họ và tên của khách hàng. |
-| `pinHash`  | String | PIN đã hash (bcrypt). KHÔNG bao giờ lưu PIN thô. `needSecured = true` trong TransField. |
+| `passwordHash` | String | Mật khẩu đăng nhập đã hash (bcrypt). |
+| `pinHash`  | String | PIN 6 số dùng để xác thực giao dịch, đã hash (bcrypt). |
 | `pocket`   | String | FK = String(Pocket._id). Gán ngay khi đăng ký. Query trực tiếp không cần join. |
 | `createdAt`| Date   | Audit — thời điểm đăng ký. |
 

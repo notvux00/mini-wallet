@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tabs, Table, Button, Select, Input, Popconfirm, Card, Typography, Space, Form, Checkbox, Row, Col, Badge } from 'antd';
+import { Tabs, Table, Button, Select, Input, Popconfirm, Card, Typography, Space, Form, Checkbox, Row, Col, Badge, Switch } from 'antd';
 import { 
   PlusOutlined, 
   DeleteOutlined, 
@@ -7,14 +7,17 @@ import {
   ControlOutlined, 
   SafetyCertificateOutlined, 
   AccountBookOutlined,
-  SaveOutlined
+  SaveOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 export default function TransactionDesign() {
   const [form] = Form.useForm();
+  const navigate = useNavigate();
   
   // Tab 2: Input Building Data
   const [inputRules, setInputRules] = useState([
@@ -25,14 +28,14 @@ export default function TransactionDesign() {
 
   // Tab 3: Validations Data
   const [validations, setValidations] = useState([
-    { key: '1', order: 1, type: 'balance_check', target: 'SENDER_POCKET', condition: '>= AMOUNT', errorCode: 'ERR_BAL_01', errorMessage: 'Insufficient Balance' },
-    { key: '2', order: 2, type: 'status_check', target: 'SENDER_POCKET', condition: '== ACTIVE', errorCode: 'ERR_WLT_02', errorMessage: 'Pocket Inactive' },
+    { key: '1', order: 1, validateFunc: 'validateSenderAccountSufficiency', validateFields: 'SENDERID:AMOUNT:DEBITFEE', errorCode: 'ERR_BAL_01', status: true },
+    { key: '2', order: 2, validateFunc: 'validateReceiverIsNotSender', validateFields: 'SENDERID:RECEIVERID', errorCode: 'ERR_SND_RCV', status: true },
   ]);
 
   // Tab 4: GL Steps Data
   const [glSteps, setGlSteps] = useState([
-    { key: '1', order: 1, drAccount: 'SENDER_POCKET', crAccount: 'SYSTEM_POOL', amount: 'AMOUNT', description: 'Principal Transfer' },
-    { key: '2', order: 2, drAccount: 'SENDER_POCKET', crAccount: 'SYSTEM_FEE', amount: 'FEE_VALUE', description: 'Fee Collection' },
+    { key: '1', order: 1, debitLevel: 'productLevel', debitTarget: 'SENDERID', creditLevel: 'productLevel', creditTarget: 'RECEIVERID', amount: 'AMOUNT', description: 'Principal Transfer' },
+    { key: '2', order: 2, debitLevel: 'productLevel', debitTarget: 'SENDERID', creditLevel: 'wallet', creditTarget: 'pkt_sys_fee', amount: 'DEBITFEE', description: 'Fee Collection' },
   ]);
 
   // Tab 1: Overview Component
@@ -51,59 +54,69 @@ export default function TransactionDesign() {
         initialValues={{ 
           serviceCode: 'P2P_TRANSFER', 
           serviceName: 'Chuyển tiền P2P', 
-          action: 'transfer_funds', 
-          actionParams: 'pocketId, amount', 
-          authMethod: 'OTP', 
-          feeType: 'FIXED', 
-          feeValue: '5000' 
+          action: 'none', 
+          actionParams: '{}', 
+          authMethod: 'PIN', 
+          feeType: 'fixed', 
+          feeValue: '0',
+          status: 'active'
         }}
       >
         <Row gutter={24}>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item label="Service Code" name="serviceCode" rules={[{ required: true }]}>
-              <Input placeholder="e.g., P2P_TRANSFER" />
+              <Input placeholder="e.g., P2P_TRANSFER" disabled />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={16}>
             <Form.Item label="Service Name" name="serviceName" rules={[{ required: true }]}>
               <Input placeholder="e.g., Chuyển tiền P2P" />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={24}>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item label="Action" name="action" rules={[{ required: true }]}>
-              <Input placeholder="e.g., transfer_funds" />
+              <Select>
+                <Option value="none">none (P2P, Cash-in)</Option>
+                <Option value="billerTrans">billerTrans (Bill Payment)</Option>
+              </Select>
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item label="Action Params" name="actionParams">
-              <Input placeholder="e.g., pocketId, amount" />
+          <Col span={16}>
+            <Form.Item label="Action Params (JSON)" name="actionParams">
+              <Input placeholder='e.g., { "billerId": "64f1a2..." }' />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={24}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item label="Auth Method" name="authMethod">
-              <Select defaultValue="OTP" style={{ width: '100%' }}>
-                <Option value="OTP">OTP (SMS)</Option>
-                <Option value="PIN">Smart PIN</Option>
-                <Option value="NONE">None</Option>
+              <Select>
+                <Option value="PIN">PIN</Option>
+                <Option value="NONE">NONE</Option>
               </Select>
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item label="Fee Type" name="feeType">
-              <Select defaultValue="FIXED" style={{ width: '100%' }}>
-                <Option value="FIXED">Fixed Amount</Option>
-                <Option value="PERCENTAGE">Percentage</Option>
-                <Option value="TIERED">Tiered</Option>
+              <Select>
+                <Option value="fixed">Fixed</Option>
+                <Option value="percent">Percent</Option>
               </Select>
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item label="Fee Value" name="feeValue">
-              <Input placeholder="e.g., 5000" />
+              <Input placeholder="e.g., 5000 or 1.5" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item label="Status" name="status">
+              <Select>
+                <Option value="active">Active</Option>
+                <Option value="inactive">Inactive</Option>
+              </Select>
             </Form.Item>
           </Col>
         </Row>
@@ -178,18 +191,18 @@ export default function TransactionDesign() {
   // Tab 3: Validations Component
   const validationColumns = [
     { title: 'Order', dataIndex: 'order', width: 80, render: (text) => <Input className="smart-input" defaultValue={text} /> },
-    { title: 'Validator Type', dataIndex: 'type', width: 200, render: (text) => (
+    { title: 'Validator Function', dataIndex: 'validateFunc', width: 280, render: (text) => (
         <Select className="smart-input" defaultValue={text} style={{ width: '100%' }}>
-          <Option value="balance_check">Balance Check</Option>
-          <Option value="status_check">Status Check</Option>
-          <Option value="limit_check">Limit Check</Option>
+          <Option value="validateReceiverIsNotSender">validateReceiverIsNotSender</Option>
+          <Option value="validateSenderAccountSufficiency">validateSenderAccountSufficiency</Option>
+          <Option value="validateSenderChecksum">validateSenderChecksum</Option>
+          <Option value="validateReceiverChecksum">validateReceiverChecksum</Option>
         </Select>
       )
     },
-    { title: 'Target Field', dataIndex: 'target', width: 180, render: (text) => <Input className="smart-input" defaultValue={text} /> },
-    { title: 'Condition', dataIndex: 'condition', render: (text) => <Input className="smart-input" defaultValue={text} /> },
+    { title: 'Target Fields', dataIndex: 'validateFields', width: 250, render: (text) => <Input className="smart-input" defaultValue={text} placeholder="e.g. SENDERID:AMOUNT" /> },
     { title: 'Error Code', dataIndex: 'errorCode', width: 140, render: (text) => <Input className="smart-input" defaultValue={text} /> },
-    { title: 'Error Message', dataIndex: 'errorMessage', width: 220, render: (text) => <Input className="smart-input" defaultValue={text} /> },
+    { title: 'Status', dataIndex: 'status', width: 80, align: 'center', render: (val) => <Switch defaultChecked={val} size="small" /> },
     { title: '', key: 'action', width: 50, fixed: 'right', render: (_, record) => (
         <Popconfirm title="Delete this validator?" onConfirm={() => setValidations(validations.filter(i => i.key !== record.key))}>
           <Button type="text" danger icon={<DeleteOutlined />} />
@@ -223,10 +236,28 @@ export default function TransactionDesign() {
 
   // Tab 4: GL Steps Component
   const glColumns = [
-    { title: 'Step', dataIndex: 'order', width: 80, render: (text) => <Input className="smart-input" defaultValue={text} /> },
-    { title: 'Debit (Dr) Account', dataIndex: 'drAccount', width: 220, render: (text) => <Input className="smart-input" defaultValue={text} style={{ fontWeight: 600, color: '#ef4444' }} /> },
-    { title: 'Credit (Cr) Account', dataIndex: 'crAccount', width: 220, render: (text) => <Input className="smart-input" defaultValue={text} style={{ fontWeight: 600, color: '#10b981' }} /> },
-    { title: 'Amount Field', dataIndex: 'amount', width: 180, render: (text) => <Input className="smart-input" defaultValue={text} /> },
+    { title: 'Step', dataIndex: 'order', width: 60, render: (text) => <Input className="smart-input" defaultValue={text} /> },
+    { title: 'Debit (Dr)', width: 300, render: (_, record) => (
+        <Space.Compact style={{ width: '100%' }}>
+          <Select className="smart-input" defaultValue={record.debitLevel} style={{ width: '45%' }}>
+            <Option value="productLevel">productLevel</Option>
+            <Option value="wallet">wallet</Option>
+          </Select>
+          <Input className="smart-input" defaultValue={record.debitTarget} style={{ width: '55%', color: '#ef4444', fontWeight: 600 }} placeholder="Target (e.g. SENDERID)" />
+        </Space.Compact>
+      )
+    },
+    { title: 'Credit (Cr)', width: 300, render: (_, record) => (
+        <Space.Compact style={{ width: '100%' }}>
+          <Select className="smart-input" defaultValue={record.creditLevel} style={{ width: '45%' }}>
+            <Option value="productLevel">productLevel</Option>
+            <Option value="wallet">wallet</Option>
+          </Select>
+          <Input className="smart-input" defaultValue={record.creditTarget} style={{ width: '55%', color: '#10b981', fontWeight: 600 }} placeholder="Target" />
+        </Space.Compact>
+      )
+    },
+    { title: 'Amount Var', dataIndex: 'amount', width: 140, render: (text) => <Input className="smart-input" defaultValue={text} placeholder="e.g. AMOUNT" /> },
     { title: 'Description', dataIndex: 'description', render: (text) => <Input className="smart-input" defaultValue={text} /> },
     { title: '', key: 'action', width: 50, fixed: 'right', render: (_, record) => (
         <Popconfirm title="Delete this step?" onConfirm={() => setGlSteps(glSteps.filter(i => i.key !== record.key))}>
@@ -242,6 +273,12 @@ export default function TransactionDesign() {
         <Col>
           <Title level={4} style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>Transaction Definition</Title>
           <Text style={{ color: '#64748b' }}>Define double-entry bookkeeping movements</Text>
+        </Col>
+        <Col>
+          <Space>
+            <Text strong style={{ color: '#64748b' }}>Definition Status:</Text>
+            <Switch checkedChildren="Active" unCheckedChildren="Inactive" defaultChecked />
+          </Space>
         </Col>
       </Row>
       <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, overflow: 'hidden' }}>
@@ -264,10 +301,10 @@ export default function TransactionDesign() {
       
       {/* Context Toolbar */}
       <Card bodyStyle={{ padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <Space size="large">
-          <Text strong style={{ color: '#64748b', fontSize: 14 }}>Editing Configuration for:</Text>
-          <Text strong style={{ fontSize: 18, color: '#0f172a' }}>Chuyển tiền P2P (P2P_TRANSFER)</Text>
-          <Badge status="processing" text="Active Config" style={{ marginLeft: 16 }} />
+        <Space size="middle" align="center">
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/services')} style={{ fontSize: 16, color: '#64748b' }} />
+          <Text strong style={{ fontSize: 20, color: '#0f172a' }}>Chuyển tiền P2P</Text>
+          <Badge status="processing" text="Active Config" style={{ marginLeft: 8 }} />
         </Space>
         
         <Button type="primary" icon={<SaveOutlined />} size="large" style={{ background: '#0ea5e9' }}>

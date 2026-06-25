@@ -1,42 +1,48 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
 import { 
-  AppstoreOutlined, 
-  SettingOutlined, 
-  WalletOutlined, 
-  BankOutlined, 
+  HomeOutlined, 
+  SwapOutlined, 
+  FileTextOutlined, 
   UserOutlined,
-  HistoryOutlined,
-  FileDoneOutlined,
   LogoutOutlined,
-  UserSwitchOutlined,
-  WalletFilled
+  WalletFilled,
+  HistoryOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
-export default function AdminLayout() {
+export default function CustomerLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isAuthPage = location.pathname === '/app/login' || location.pathname === '/app/register';
+
   const menuItems = [
-    { key: '/services', icon: <AppstoreOutlined />, label: 'Services' },
-    { key: '/transaction-design', icon: <SettingOutlined />, label: 'Config Builder' },
-    { key: '/pockets', icon: <WalletOutlined />, label: 'Pockets' },
-    { key: '/billers', icon: <BankOutlined />, label: 'Billers' },
-    { key: '/customers', icon: <UserSwitchOutlined />, label: 'Customers' },
-    { key: '/trail', icon: <HistoryOutlined />, label: 'Transaction Trail' },
-    { key: '/history', icon: <FileDoneOutlined />, label: 'History' },
+    { key: '/app/home', icon: <HomeOutlined />, label: 'Dashboard' },
+    { key: '/app/transfer', icon: <SwapOutlined />, label: 'P2P Transfer' },
+    { key: '/app/bill-payment', icon: <FileTextOutlined />, label: 'Bill Payment' },
+    { key: '/app/history', icon: <HistoryOutlined />, label: 'History' },
   ];
 
   const userMenu = {
     items: [
-      { key: '1', icon: <LogoutOutlined />, label: 'Logout' }
+      { key: '1', icon: <LogoutOutlined />, label: 'Logout', onClick: () => navigate('/app/login') }
     ]
   };
+
+  if (isAuthPage) {
+    return (
+      <Layout style={{ minHeight: '100vh', background: '#f1f5f9' }}>
+        <Content>
+          <Outlet />
+        </Content>
+      </Layout>
+    );
+  }
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f7f9fa' }}>
@@ -48,13 +54,13 @@ export default function AdminLayout() {
         width={220}
         theme="light"
       >
-        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e2e8f0', cursor: 'pointer' }} onClick={() => navigate('/app/home')}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: collapsed ? 0 : 12 }}>
             <WalletFilled style={{ color: '#0ea5e9', fontSize: 28 }} />
           </div>
           {!collapsed && (
             <Title level={4} style={{ margin: 0, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>
-              Mini<span style={{ color: '#0ea5e9' }}>Pocket</span>
+              Mini<span style={{ color: '#0ea5e9' }}>Wallet</span>
             </Title>
           )}
         </div>
@@ -75,8 +81,11 @@ export default function AdminLayout() {
           <Space size="large">
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
-                <Avatar style={{ backgroundColor: '#e0f2fe', color: '#0ea5e9' }} icon={<UserOutlined />} />
-                <Text strong style={{ color: '#0f172a', fontSize: 14 }}>Admin Officer</Text>
+                <Avatar style={{ backgroundColor: '#0ea5e9' }} icon={<UserOutlined />} />
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                  <Text strong style={{ color: '#0f172a', fontSize: 14 }}>Nguyễn Văn A</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>090****123</Text>
+                </div>
               </Space>
             </Dropdown>
           </Space>

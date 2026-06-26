@@ -81,7 +81,7 @@ export default function OfficerLayout() {
       <Layout style={{ background: '#f7f9fa' }}>
         <Header className="glass-header" style={{ padding: '0 32px', height: 64, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff' }}>
           <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#0f172a' }}>
-            {menuItems.find(item => item.key === location.pathname)?.label || (location.pathname === '/admin/transaction-design' ? 'Config Builder' : 'Dashboard')}
+            {menuItems.find(item => item.key === location.pathname)?.label || (location.pathname === '/officer/transaction-design' ? 'Config Builder' : 'Dashboard')}
           </Title>
           <Space size="large">
             <Dropdown menu={userMenu} placement="bottomRight">

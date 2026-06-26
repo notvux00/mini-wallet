@@ -302,7 +302,7 @@ export default function TransactionDesign() {
       {/* Context Toolbar */}
       <Card bodyStyle={{ padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 8, background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <Space size="middle" align="center">
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/services')} style={{ fontSize: 16, color: '#64748b' }} />
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/officer/services')} style={{ fontSize: 16, color: '#64748b' }} />
           <Text strong style={{ fontSize: 20, color: '#0f172a' }}>Chuyển tiền P2P</Text>
           <Badge status="processing" text="Active Config" style={{ marginLeft: 8 }} />
         </Space>

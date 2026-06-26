@@ -196,3 +196,38 @@ sequenceDiagram
     TE-->>A: Thành công
     A-->>O: Hiển thị kết quả nạp tiền
 ```
+
+---
+
+## PHẦN 4 — SYSTEM CRONJOBS & EDGE CASES
+
+```mermaid
+sequenceDiagram
+    participant CRON as Sweeper Cronjob
+    participant DB as MongoDB (TransactionTrail & Pocket)
+
+    Note over CRON, DB: KỊCH BẢN 1: GIẢI CỨU VÍ BỊ KẸT (ZOMBIE LOCK)
+    loop Mỗi 1 phút
+        CRON->>DB: Query: state="inProgress" AND lockedAt < (now - 2 phút)
+        alt Có ví bị kẹt (Zombie Lock do Server chết đột tử)
+            DB-->>CRON: Trả về danh sách ví bị kẹt và transRefId
+            CRON->>DB: Update Pocket: state="active", lockedByTransRefId=null
+            CRON->>DB: Update Trail: status="failed" (Lý do: Timeout)
+            Note right of DB: Ví đã được giải cứu.<br/>Khách có thể giao dịch lại.
+        else Không có ví nào kẹt
+            DB-->>CRON: Trả về rỗng
+        end
+    end
+
+    Note over CRON, DB: KỊCH BẢN 2: DỌN RÁC GIAO DỊCH (GARBAGE COLLECTION)
+    loop Mỗi 15 phút
+        CRON->>DB: Query Trail: status="pending" AND createdAt < (now - 30 phút)
+        alt Có giao dịch bị bỏ rơi (Khách thoát ngang)
+            DB-->>CRON: Trả về danh sách Trail rác
+            CRON->>DB: Update Trail: status="expired"
+            Note right of DB: Chốt sổ kiểm toán.<br/>(Kết hợp TTL Index xoá DB sau 30 ngày)
+        else Không có giao dịch rác
+            DB-->>CRON: Trả về rỗng
+        end
+    end
+```

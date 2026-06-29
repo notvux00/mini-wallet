@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
 import { 
   AppstoreOutlined, 
@@ -12,7 +12,8 @@ import {
   UserSwitchOutlined,
   WalletFilled
 } from '@ant-design/icons';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -21,6 +22,7 @@ export default function OfficerLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useContext(AuthContext);
 
   const isLoginPage = location.pathname === '/officer/login';
 
@@ -35,9 +37,13 @@ export default function OfficerLayout() {
 
   const userMenu = {
     items: [
-      { key: '1', icon: <LogoutOutlined />, label: 'Logout', onClick: () => navigate('/') }
+      { key: '1', icon: <LogoutOutlined />, label: 'Logout', onClick: () => { logout(); navigate('/officer/login'); } }
     ]
   };
+
+  if (!user && !isLoginPage) {
+    return <Navigate to="/officer/login" replace />;
+  }
 
   if (isLoginPage) {
     return (
@@ -87,7 +93,7 @@ export default function OfficerLayout() {
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#e0f2fe', color: '#0ea5e9' }} icon={<UserOutlined />} />
-                <Text strong style={{ color: '#0f172a', fontSize: 14 }}>Admin Officer</Text>
+                <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.username || 'Admin Officer'}</Text>
               </Space>
             </Dropdown>
           </Space>

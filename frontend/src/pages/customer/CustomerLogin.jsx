@@ -5,15 +5,34 @@ import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
+import { message } from 'antd';
+import { useContext, useState } from 'react';
+import axios from '../../utils/axios';
+import { AuthContext } from '../../context/AuthContext';
+
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { login } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (values) => {
-    // Mock login logic
-    console.log('Logging in with:', values);
-    // Simple redirect to home
-    navigate('/app/home');
+  const handleLogin = async (values) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/auth/login', {
+        phone: values.phone,
+        password: values.password,
+      });
+
+      const { token, user } = response.data.data;
+      login(user, token);
+      message.success('Đăng nhập thành công!');
+      navigate('/app/home');
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi đăng nhập');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,12 +50,11 @@ export default function CustomerLogin() {
 
         <Card className="glass-card" style={{ borderRadius: 24, padding: 8 }}>
           <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Welcome Back</Title>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleLogin}
-            initialValues={{ phone: '0901234567', password: 'password123' }}
-          >
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleLogin}
+            >
             <Form.Item
               name="phone"
               rules={[{ required: true, message: 'Please input your phone number!' }]}
@@ -67,6 +85,7 @@ export default function CustomerLogin() {
                 htmlType="submit" 
                 size="large" 
                 block 
+                loading={loading}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
                 Login

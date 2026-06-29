@@ -5,15 +5,34 @@ import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
+import { message } from 'antd';
+import { useContext, useState } from 'react';
+import axios from '../../utils/axios';
+import { AuthContext } from '../../context/AuthContext';
+
 export default function OfficerLogin() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { login } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (values) => {
-    // Mock login logic
-    console.log('Officer logging in with:', values);
-    // Simple redirect to admin dashboard (services)
-    navigate('/officer/services');
+  const handleLogin = async (values) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/officer/login', {
+        username: values.username,
+        password: values.password,
+      });
+
+      const { token, user } = response.data.data;
+      login(user, token);
+      message.success('Đăng nhập thành công!');
+      navigate('/officer/services');
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi đăng nhập');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,12 +50,11 @@ export default function OfficerLogin() {
 
         <Card className="glass-card" style={{ borderRadius: 24, padding: 8 }}>
           <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Officer Login</Title>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleLogin}
-            initialValues={{ username: 'admin', password: 'password123' }}
-          >
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleLogin}
+            >
             <Form.Item
               name="username"
               rules={[{ required: true, message: 'Please input your username!' }]}
@@ -67,6 +85,7 @@ export default function OfficerLogin() {
                 htmlType="submit" 
                 size="large" 
                 block 
+                loading={loading}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
                 Login to Workspace

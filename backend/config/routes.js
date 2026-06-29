@@ -21,6 +21,15 @@ module.exports.routes = {
 
   '/': { view: 'pages/homepage' },
 
+  // 1. Nhóm API Xác thực cho Khách hàng
+  'POST /api/auth/register': 'AuthController.register',
+  'POST /api/auth/login': 'AuthController.login',
+  'POST /api/auth/me': 'AuthController.getMe',
+
+  // 2. Nhóm API Xác thực cho Quản trị viên
+  'POST /api/officer/login': 'OfficerController.login',
+  'POST /api/officer/me': 'OfficerController.getMe',
+
 
   /***************************************************************************
   *                                                                          *

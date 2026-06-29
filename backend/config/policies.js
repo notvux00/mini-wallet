@@ -19,4 +19,17 @@ module.exports.policies = {
 
   '*': false,
 
+  // Người dùng đăng nhập và đăng ký tài khoản thì không cần token, nên mở barie cho 2 action này
+  'AuthController': {
+    'register': true,
+    'login': true,
+    'getMe': 'isAuthorized'
+  },
+
+  // Đăng nhập cho quản trị viên thì cũng không cần token, nên mở barie cho action này
+  'OfficerController': {
+    'login': true,
+    'getMe': 'isAuthorized'
+  }
+
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Card, Typography, Row, Col, Statistic, Button, List, Avatar, Tag, Space, Divider } from 'antd';
 import { 
   SwapOutlined, 
@@ -11,12 +11,18 @@ import {
   BankOutlined,
   HistoryOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 
 const { Title, Text } = Typography;
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+
+  if (!user) {
+    return <Navigate to="/app/login" replace />;
+  }
 
   // Mock data
   const balance = 1500000;
@@ -41,7 +47,7 @@ export default function CustomerDashboard() {
   return (
     <div>
       <div style={{ marginBottom: 32 }}>
-        <Title level={3} style={{ margin: 0, color: '#0f172a' }}>Good Morning, Nguyen!</Title>
+        <Title level={3} style={{ margin: 0, color: '#0f172a' }}>Good Morning, {user?.name || user?.phone}!</Title>
         <Text style={{ color: '#64748b' }}>Here is a summary of your wallet today.</Text>
       </div>
 

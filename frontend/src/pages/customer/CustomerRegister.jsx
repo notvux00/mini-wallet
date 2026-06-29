@@ -5,16 +5,31 @@ import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
+import { useState } from 'react';
+import axios from '../../utils/axios';
+
 export default function CustomerRegister() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = (values) => {
-    // Mock register logic
-    console.log('Registering with:', values);
-    message.success('Registration successful! Please login.');
-    // Redirect to login after successful registration
-    navigate('/app/login');
+  const handleRegister = async (values) => {
+    setLoading(true);
+    try {
+      await axios.post('/api/auth/register', {
+        phone: values.phone,
+        name: values.fullName,
+        password: values.password,
+        pin: values.pin
+      });
+
+      message.success('Đăng ký thành công! Vui lòng đăng nhập.');
+      navigate('/app/login');
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi đăng ký');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -160,6 +175,7 @@ export default function CustomerRegister() {
                 htmlType="submit" 
                 size="large" 
                 block 
+                loading={loading}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
                 Register

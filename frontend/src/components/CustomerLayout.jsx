@@ -10,6 +10,7 @@ import {
   HistoryOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -18,6 +19,7 @@ export default function CustomerLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = React.useContext(AuthContext);
 
   const isAuthPage = location.pathname === '/app/login' || location.pathname === '/app/register';
 
@@ -30,8 +32,14 @@ export default function CustomerLayout() {
 
   const userMenu = {
     items: [
-      { key: '1', icon: <LogoutOutlined />, label: 'Logout', onClick: () => navigate('/app/login') }
+      { key: '1', icon: <LogoutOutlined />, label: 'Logout', onClick: () => { logout(); navigate('/app/login'); } }
     ]
+  };
+
+  const maskPhone = (phone) => {
+    if (!phone) return '';
+    if (phone.length < 7) return phone;
+    return phone.slice(0, 3) + '****' + phone.slice(-3);
   };
 
   if (isAuthPage) {
@@ -83,8 +91,8 @@ export default function CustomerLayout() {
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#0ea5e9' }} icon={<UserOutlined />} />
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                  <Text strong style={{ color: '#0f172a', fontSize: 14 }}>Nguyễn Văn A</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>090****123</Text>
+                  <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.name || 'Customer'}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>{maskPhone(user?.phone)}</Text>
                 </div>
               </Space>
             </Dropdown>

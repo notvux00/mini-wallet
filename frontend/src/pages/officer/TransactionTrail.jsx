@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Card, Typography, Table, Tag, Button, Modal, Tabs, Timeline } from 'antd';
+import React, { useState, useEffect } from 'react';
+import axios from '../../utils/axios';
+import { Card, Typography, Table, Tag, Button, Modal, Tabs, Timeline, message, Select, Input, Space } from 'antd';
 import { FileTextOutlined, EyeOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -14,8 +15,14 @@ export default function TransactionTrail() {
     setIsModalVisible(true);
   };
 
+  const formatId = (id) => {
+    if (!id) return '';
+    if (id.length <= 12) return id;
+    return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`;
+  };
+
   const columns = [
-    { title: 'Trans Ref ID', dataIndex: 'id', key: 'id', align: 'center', render: text => <Text code strong>{text}</Text> },
+    { title: 'Trans Ref ID', dataIndex: 'id', key: 'id', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
     { title: 'Service ID', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text}</Tag> },
     { title: 'Step', dataIndex: 'transStep', key: 'transStep', align: 'center', render: text => <Tag color="purple">Step {text}</Tag> },
     { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => {
@@ -35,46 +42,114 @@ export default function TransactionTrail() {
     )}
   ];
 
-  const data = [
-    { 
-      key: '1', 
-      id: '64f1a2b3c4d5e6f7a8b9c0d1', 
-      serviceId: 'P2P_TRANSFER', 
-      transStep: 3, 
-      status: 'done', 
-      createdAt: '2026-06-25 14:00:00',
-      updatedAt: '2026-06-25 14:00:05',
-      inputMessage: { TRANSBODY: { SERVICEID: "P2P_TRANSFER", SENDERID: "0987654321", RECEIVERID: "0912345678", AMOUNT: 50000, PIN: "******" } },
-      outputMessage: { TRANSBODY: { SERVICEID: "P2P_TRANSFER", SENDERID: "pkt_cust_001", RECEIVERID: "pkt_cust_002", AMOUNT: 50000, DEBITFEE: 0, TOTALAMOUNT: 50000, TRANSREFID: "64f1a2b3c4d5e6f7a8b9c0d1" } },
-      transStepLog: [
-        { step: 'request', timestamp: '2026-06-25 14:00:00', result: 'success' },
-        { step: 'authenticate', timestamp: '2026-06-25 14:00:01', result: 'success' },
-        { step: 'validate', timestamp: '2026-06-25 14:00:02', result: 'success' },
-        { step: 'verify_acid', timestamp: '2026-06-25 14:00:05', result: 'success' }
-      ]
-    },
-    { 
-      key: '2', 
-      id: '64f1a2b3c4d5e6f7a8b9c0d2', 
-      serviceId: 'BILL_PAYMENT', 
-      transStep: 2, 
-      status: 'failed', 
-      createdAt: '2026-06-25 14:05:00',
-      updatedAt: '2026-06-25 14:05:02',
-      inputMessage: { TRANSBODY: { SERVICEID: "BILL_PAYMENT", SENDERID: "0987654321", BILLERID: "EVN_HANOI", BILLCODE: "PE01234567", AMOUNT: 250000, PIN: "******" } },
-      outputMessage: null,
-      transStepLog: [
-        { step: 'request', timestamp: '2026-06-25 14:05:00', result: 'success' },
-        { step: 'authenticate', timestamp: '2026-06-25 14:05:01', result: 'success' },
-        { step: 'validate', timestamp: '2026-06-25 14:05:02', result: 'failed', errorCode: 'ERR_INSUFFICIENT_BALANCE' }
-      ]
-    },
-  ];
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [filterStatus, setFilterStatus] = useState('');
+  const [searchTransRef, setSearchTransRef] = useState('');
+  const [searchServiceId, setSearchServiceId] = useState('');
+
+  const fetchTrails = async (page = 1, status = filterStatus, transRefId = searchTransRef, serviceId = searchServiceId) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/officer/trails/list', {
+        page: page,
+        limit: pagination.pageSize,
+        status: status || undefined,
+        transRefId: transRefId || undefined,
+        serviceId: serviceId || undefined
+      });
+      const { items, total } = response.data.data;
+      
+      const formattedData = items.map(item => ({
+        key: item.id,
+        id: item.transRefId || item.id,
+        serviceId: item.serviceId,
+        transStep: item.transStep,
+        status: item.status,
+        createdAt: new Date(item.createdAt).toLocaleString('vi-VN'),
+        updatedAt: new Date(item.updatedAt).toLocaleString('vi-VN'),
+        inputMessage: typeof item.inputMessage === 'string' ? JSON.parse(item.inputMessage) : item.inputMessage,
+        outputMessage: typeof item.outputMessage === 'string' ? JSON.parse(item.outputMessage) : item.outputMessage,
+        transStepLog: typeof item.transStepLog === 'string' ? JSON.parse(item.transStepLog || '[]') : (item.transStepLog || [])
+      }));
+
+      setData(formattedData);
+      setPagination(prev => ({ ...prev, current: page, total: total }));
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi tải danh sách Dấu vết giao dịch');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrails();
+  }, []);
+
+  const handleTableChange = (newPagination) => {
+    fetchTrails(newPagination.current);
+  };
+
+  const handleFilterChange = (value) => {
+    setFilterStatus(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchTrails(1, value, searchTransRef, searchServiceId);
+  };
+
+  const handleSearchTransRef = (value) => {
+    setSearchTransRef(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchTrails(1, filterStatus, value, searchServiceId);
+  };
+
+  const handleSearchServiceId = (value) => {
+    setSearchServiceId(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchTrails(1, filterStatus, searchTransRef, value);
+  };
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Space>
+          <Input.Search 
+            placeholder="Trans Ref ID..." 
+            allowClear
+            onSearch={handleSearchTransRef} 
+            style={{ width: 200 }} 
+            size="large"
+          />
+          <Input.Search 
+            placeholder="Service ID..." 
+            allowClear
+            onSearch={handleSearchServiceId} 
+            style={{ width: 180 }} 
+            size="large"
+          />
+          <Select 
+            value={filterStatus} 
+            style={{ width: 180 }} 
+            size="large"
+            onChange={handleFilterChange}
+          >
+            <Select.Option value="">Tất cả trạng thái</Select.Option>
+            <Select.Option value="init">Khởi tạo (Init)</Select.Option>
+            <Select.Option value="pending">Đang xử lý (Pending)</Select.Option>
+            <Select.Option value="done">Thành công (Done)</Select.Option>
+            <Select.Option value="failed">Thất bại (Failed)</Select.Option>
+          </Select>
+        </Space>
+      </div>
       <Card className="glass-card" bodyStyle={{ padding: 0, overflow: 'hidden' }}>
-        <Table columns={columns} dataSource={data} pagination={false} rowClassName="smart-row" />
+        <Table 
+          columns={columns} 
+          dataSource={data} 
+          pagination={{ ...pagination, showSizeChanger: false }} 
+          onChange={handleTableChange}
+          loading={loading}
+          rowClassName="smart-row" 
+        />
       </Card>
 
       <Modal

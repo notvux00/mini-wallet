@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Card, Typography, Row, Col, Statistic, Button, List, Avatar, Tag, Space, Divider } from 'antd';
 import { 
   SwapOutlined, 
@@ -12,6 +12,7 @@ import {
   HistoryOutlined
 } from '@ant-design/icons';
 import { useNavigate, Navigate } from 'react-router-dom';
+import axios from '../../utils/axios';
 import { AuthContext } from '../../context/AuthContext';
 
 const { Title, Text } = Typography;
@@ -24,16 +25,29 @@ export default function CustomerDashboard() {
     return <Navigate to="/app/login" replace />;
   }
 
-  // Mock data
-  const balance = 1500000;
-  const monthlyIncome = 2500000;
-  const monthlyExpense = 1000000;
-  
-  const history = [
-    { id: 'TXN125', type: 'P2P_TRANSFER', amount: -200000, date: '2026-06-25 10:15:00', status: 'done', desc: 'Transfer to 0912345678' },
-    { id: 'TXN124', type: 'P2P_TRANSFER', amount: 50000, date: '2026-06-25 09:10:00', status: 'done', desc: 'Received from 0987654321' },
-    { id: 'TXN123', type: 'P2P_TRANSFER', amount: -50000, date: '2026-06-25 08:30:00', status: 'done', desc: 'Transfer to 0912345678' },
-  ];
+  const [dashboardData, setDashboardData] = useState({
+    balance: 0,
+    income: 0,
+    expense: 0,
+    recentTransactions: []
+  });
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await axios.post('/api/customer/dashboard');
+        if (response.data.err === 0) {
+          setDashboardData(response.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard', error);
+      }
+    };
+    
+    fetchDashboard();
+  }, []);
+
+  const { balance, income: monthlyIncome, expense: monthlyExpense, recentTransactions: history } = dashboardData;
 
   const quickActions = [
     { icon: <SwapOutlined />, label: 'Transfer', path: '/app/transfer', color: '#0ea5e9', bg: '#e0f2fe' },
@@ -143,7 +157,7 @@ export default function CustomerDashboard() {
               itemLayout="horizontal"
               dataSource={history}
               renderItem={item => {
-                const isNegative = item.amount < 0;
+                const isNegative = item.type === 'expense';
                 return (
                   <List.Item style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
                     <List.Item.Meta
@@ -158,15 +172,15 @@ export default function CustomerDashboard() {
                           icon={isNegative ? <ArrowDownOutlined /> : <ArrowUpOutlined />} 
                         />
                       }
-                      title={<Text strong style={{ fontSize: 15, color: '#0f172a' }}>{item.desc}</Text>}
-                      description={<Text type="secondary" style={{ fontSize: 13 }}>{item.date}</Text>}
+                      title={<Text strong style={{ fontSize: 15, color: '#0f172a' }}>{item.displayTitle}</Text>}
+                      description={<Text type="secondary" style={{ fontSize: 13 }}>{new Date(item.createdAt).toLocaleString('vi-VN')}</Text>}
                     />
                     <div style={{ textAlign: 'right' }}>
                       <Text strong style={{ color: isNegative ? '#ef4444' : '#22c55e', fontSize: 16 }}>
-                        {isNegative ? '' : '+'}{item.amount.toLocaleString('vi-VN')} đ
+                        {isNegative ? '-' : '+'}{item.displayAmount?.toLocaleString('vi-VN') || 0} đ
                       </Text>
                       <br/>
-                      <Text type="secondary" style={{ fontSize: 12 }}>{item.type.replace('_', ' ')}</Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{item.serviceId ? item.serviceId.replace('_', ' ') : ''}</Text>
                     </div>
                   </List.Item>
                 );

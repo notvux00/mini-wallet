@@ -30,6 +30,7 @@ module.exports = {
           user: {
             id: officer.id,
             username: officer.username,
+            name: officer.name,
             role: 'officer' } 
         },
         'Đăng nhập quản trị viên thành công!'
@@ -54,6 +55,7 @@ module.exports = {
       return res.ok({
         id: userData.id,
         username: userData.username,
+        name: userData.name,
         role: 'officer'
       }, 'Lấy thông tin thành công!');
 

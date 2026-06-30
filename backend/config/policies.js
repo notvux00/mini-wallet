@@ -28,8 +28,40 @@ module.exports.policies = {
 
   // Đăng nhập cho quản trị viên thì cũng không cần token, nên mở barie cho action này
   'OfficerController': {
+    '*': ['isAuthorized', 'isOfficer'],
     'login': true,
-    'getMe': 'isAuthorized'
-  }
+  },
+
+  'CustomerController': {
+    '*': 'isAuthorized',
+  },
+
+  'CustomerBillerController': {
+    '*': 'isAuthorized',
+  },
+
+  'CustomerTransactionController': {
+    '*': 'isAuthorized',
+  },
+
+  'OfficerCustomerController': {
+    '*': ['isAuthorized', 'isOfficer'],
+  },
+
+  'OfficerBillerController': {
+    '*': ['isAuthorized', 'isOfficer'] 
+  },
+
+  'OfficerPocketController': { 
+    '*': ['isAuthorized', 'isOfficer'] 
+  },
+
+  'OfficerTransactionController': { 
+    '*': ['isAuthorized', 'isOfficer'] 
+  },
+
+  'OfficerTrailController': { 
+    '*': ['isAuthorized', 'isOfficer'] 
+  },
 
 };

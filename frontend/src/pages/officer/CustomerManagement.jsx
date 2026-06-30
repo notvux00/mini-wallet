@@ -1,14 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from '../../utils/axios';
 import { Card, Typography, Table, Button, Space, Modal, Form, InputNumber, Input, message, Row, Col } from 'antd';
 import { DollarOutlined, PlusOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
 export default function CustomerManagement() {
-  const [data, setData] = useState([
-    { key: '1', phone: '0987654321', name: 'Nguyễn Văn A', pocket: 'pkt_cust_001', createdAt: '2026-06-20', balance: 50000 },
-    { key: '2', phone: '0912345678', name: 'Trần Thị B', pocket: 'pkt_cust_002', createdAt: '2026-06-22', balance: 1500000 },
-  ]);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [filterPhone, setFilterPhone] = useState('');
+
+  const formatId = (id) => {
+    if (!id) return '';
+    if (id.length <= 12) return id;
+    return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`;
+  };
+
+  const fetchCustomers = async (page = 1, phone = filterPhone) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/officer/customers/list', {
+        page: page,
+        limit: pagination.pageSize,
+        phone: phone || undefined
+      });
+      const { items, total } = response.data.data;
+      
+      const formattedData = items.map(item => ({
+        key: item.id,
+        phone: item.phone,
+        name: item.name || 'Thành viên MiniWallet', // Backend Customer hiện tại chưa có trường name
+        pocket: item.pocket ? item.pocket.id : 'N/A', 
+        createdAt: new Date(item.createdAt).toLocaleDateString('vi-VN'),
+        balance: item.pocket ? item.pocket.balance : 0 
+      }));
+
+      setData(formattedData);
+      setPagination(prev => ({ ...prev, current: page, total: total }));
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi tải danh sách khách hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const handleTableChange = (newPagination) => {
+    fetchCustomers(newPagination.current);
+  };
+
+  const handleSearch = (value) => {
+    setFilterPhone(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchCustomers(1, value);
+  };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -38,7 +87,7 @@ export default function CustomerManagement() {
   const columns = [
     { title: 'Phone', dataIndex: 'phone', key: 'phone', align: 'center', width: '15%', render: text => <Text strong style={{ color: '#0f172a' }}>{text}</Text> },
     { title: 'Name', dataIndex: 'name', key: 'name', align: 'center', width: '20%' },
-    { title: 'Pocket ID', dataIndex: 'pocket', key: 'pocket', align: 'center', width: '15%', render: text => <Text type="secondary">{text}</Text> },
+    { title: 'Pocket ID', dataIndex: 'pocket', key: 'pocket', align: 'center', width: '15%', render: text => text !== 'N/A' ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary">N/A</Text> },
     { title: 'Balance (VND)', dataIndex: 'balance', key: 'balance', align: 'center', width: '15%', render: text => <Text type="success" strong style={{ fontSize: 15 }}>{text.toLocaleString()}</Text> },
     { title: 'Registered At', dataIndex: 'createdAt', key: 'createdAt', align: 'center', width: '20%' },
     { title: 'Action', key: 'action', align: 'center', width: '15%', render: (_, record) => (
@@ -50,8 +99,24 @@ export default function CustomerManagement() {
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Input.Search 
+          placeholder="Tìm kiếm theo Số điện thoại..." 
+          allowClear
+          onSearch={handleSearch} 
+          style={{ width: 300 }} 
+          size="large"
+        />
+      </div>
       <Card className="glass-card" bodyStyle={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-        <Table columns={columns} dataSource={data} pagination={false} rowClassName="smart-row" />
+        <Table 
+          columns={columns} 
+          dataSource={data} 
+          pagination={{ ...pagination, showSizeChanger: false }} 
+          onChange={handleTableChange}
+          loading={loading}
+          rowClassName="smart-row" 
+        />
       </Card>
 
       <Modal

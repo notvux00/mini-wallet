@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Card, Typography, Form, Input, Button, Modal, Steps, Divider, Result, Select, Spin, Alert } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Typography, Form, Input, Button, Modal, Steps, Divider, Result, Select, Spin, Alert, Row } from 'antd';
+import axios from '../../utils/axios';
 import { LockOutlined, ThunderboltOutlined, WifiOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,7 +14,22 @@ export default function BillPayment() {
   const [previewData, setPreviewData] = useState(null);
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [isEnquiring, setIsEnquiring] = useState(false);
+  const [billers, setBillers] = useState([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchBillers = async () => {
+      try {
+        const response = await axios.post('/api/customer/billers/list');
+        if (response.data?.data) {
+          setBillers(response.data.data);
+        }
+      } catch (error) {
+        console.error('Không tải được danh sách Biller', error);
+      }
+    };
+    fetchBillers();
+  }, []);
 
   const handleEnquiry = (values) => {
     setIsEnquiring(true);
@@ -77,9 +93,11 @@ export default function BillPayment() {
               rules={[{ required: true, message: 'Please select a biller!' }]}
             >
               <Select size="large" placeholder="Select provider">
-                <Option value="EVN"><ThunderboltOutlined style={{ color: '#eab308', marginRight: 8 }}/> EVN (Electricity)</Option>
-                <Option value="WATER">Water Supply</Option>
-                <Option value="INTERNET"><WifiOutlined style={{ color: '#10b981', marginRight: 8 }}/> Internet / TV</Option>
+                {Array.isArray(billers) && billers.map(biller => (
+                  <Option key={biller.code} value={biller.code}>
+                    {biller.name}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
             

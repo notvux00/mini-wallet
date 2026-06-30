@@ -93,7 +93,7 @@ export default function OfficerLayout() {
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#e0f2fe', color: '#0ea5e9' }} icon={<UserOutlined />} />
-                <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.username || 'Admin Officer'}</Text>
+                <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.name || user?.username || 'Admin Officer'}</Text>
               </Space>
             </Dropdown>
           </Space>

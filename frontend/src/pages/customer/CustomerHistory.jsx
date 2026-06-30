@@ -1,17 +1,40 @@
-import React from 'react';
-import { Card, Typography, Table, Tag } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Typography, Table, Tag, message } from 'antd';
+import axios from '../../utils/axios';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 
 export default function CustomerHistory() {
-  const history = [
-    { id: 'TXN125', type: 'P2P_TRANSFER', amount: -200000, date: '2026-06-25 10:15:00', status: 'done', desc: 'Transfer to 0912345678' },
-    { id: 'TXN124', type: 'P2P_TRANSFER', amount: 50000, date: '2026-06-25 09:10:00', status: 'done', desc: 'Received from 0987654321' },
-    { id: 'TXN123', type: 'P2P_TRANSFER', amount: -50000, date: '2026-06-25 08:30:00', status: 'done', desc: 'Transfer to 0912345678' },
-    { id: 'TXN122', type: 'CASH_IN', amount: 500000, date: '2026-06-24 15:45:00', status: 'done', desc: 'Top up from Bank' },
-    { id: 'TXN121', type: 'BILL_PAYMENT', amount: -150000, date: '2026-06-20 10:15:00', status: 'done', desc: 'EVN Bill Payment' },
-  ];
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+
+  const fetchHistory = async (page = 1) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/customer/transactions/history', {
+        page: page,
+        limit: pagination.pageSize
+      });
+      setHistory(response.data.data || []);
+      // Giả sử API trả về total count trong tương lai, hiện tại cứ để tạm
+    } catch (error) {
+      console.error('Không tải được lịch sử', error);
+      message.error('Không thể tải lịch sử giao dịch.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory(pagination.current);
+  }, []);
+
+  const handleTableChange = (newPagination) => {
+    setPagination(newPagination);
+    fetchHistory(newPagination.current);
+  };
 
   const columns = [
     {
@@ -63,7 +86,9 @@ export default function CustomerHistory() {
           columns={columns} 
           dataSource={history} 
           rowKey="id"
-          pagination={{ pageSize: 10 }}
+          pagination={pagination}
+          loading={loading}
+          onChange={handleTableChange}
         />
       </Card>
     </div>

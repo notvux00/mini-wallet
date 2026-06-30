@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from '../../utils/axios';
 import { Card, Typography, Table, Tag, Button, Modal, Form, Select, InputNumber, message, Space, Popconfirm } from 'antd';
 import { PlusOutlined, WalletOutlined, SafetyCertificateFilled, WarningFilled, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
@@ -6,9 +7,15 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 export default function PocketManagement() {
+  const formatId = (id) => {
+    if (!id) return '';
+    if (id.length <= 12) return id;
+    return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`;
+  };
+
   const columns = [
-    { title: 'Pocket ID', dataIndex: 'id', key: 'id', align: 'center', width: '15%', render: text => <Text strong>{text}</Text> },
-    { title: 'User Ref', dataIndex: 'user', key: 'user', align: 'center', width: '15%', render: text => text ? <Text code>{text}</Text> : <Text type="secondary" italic>NULL</Text> },
+    { title: 'Pocket ID', dataIndex: 'id', key: 'id', align: 'center', width: '15%', render: text => <Text strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'User Ref', dataIndex: 'user', key: 'user', align: 'center', width: '15%', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>NULL</Text> },
     { title: 'Client', dataIndex: 'client', key: 'client', align: 'center', width: '10%', render: text => <Tag color={text === 'system' || text === 'bank' ? 'purple' : 'blue'}>{text.toUpperCase()}</Tag> },
     { title: 'Currency', dataIndex: 'currency', key: 'currency', align: 'center', width: '10%' },
     { title: 'Balance', dataIndex: 'balance', key: 'balance', align: 'center', width: '15%', render: text => <Text type="success" strong>{text.toLocaleString()}</Text> },
@@ -34,12 +41,55 @@ export default function PocketManagement() {
     )}
   ];
 
-  const [data, setData] = useState([
-    { key: '1', id: 'sys_01', user: null, client: 'system', currency: 'VND', balance: 1500000, checksum: 'e10adc3949ba59abbe56e057f20f883e', state: 'active', status: 'active' },
-    { key: '2', id: 'bank_01', user: null, client: 'bank', currency: 'VND', balance: 100000000, checksum: '5f4dcc3b5aa765d61d8327deb882cf99', state: 'active', status: 'active' },
-    { key: '3', id: 'cust_88', user: 'customer_123', client: 'customer', currency: 'VND', balance: 50000, checksum: '202cb962ac59075b964b07152d234b70', state: 'inProgress', status: 'active' },
-    { key: '4', id: 'biller_evn', user: 'biller_evn_1', client: 'biller', currency: 'VND', balance: 250000, checksum: 'caf1a3dfb505ffed0d024130f58c5cfa', state: 'active', status: 'active' },
-  ]);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [filterClient, setFilterClient] = useState('');
+
+  const fetchPockets = async (page = 1, client = filterClient) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/officer/pockets/list', {
+        page: page,
+        limit: pagination.pageSize,
+        client: client || undefined
+      });
+      const { items, total } = response.data.data;
+      
+      const formattedData = items.map(item => ({
+        key: item.id,
+        id: item.id,
+        user: item.user,
+        client: item.client,
+        currency: item.currency,
+        balance: item.balance,
+        checksum: item.checksum,
+        state: item.state,
+        status: item.status
+      }));
+
+      setData(formattedData);
+      setPagination(prev => ({ ...prev, current: page, total: total }));
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi tải danh sách Ví');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPockets();
+  }, []);
+
+  const handleTableChange = (newPagination) => {
+    fetchPockets(newPagination.current);
+  };
+
+  const handleFilterChange = (value) => {
+    setFilterClient(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchPockets(1, value);
+  };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
@@ -53,50 +103,60 @@ export default function PocketManagement() {
     setIsModalVisible(false);
   };
 
-  const togglePocketStatus = (record) => {
-    const updatedData = data.map(item => {
-      if (item.key === record.key) {
-        const newStatus = item.status === 'active' ? 'inactive' : 'active';
-        message.success(`Pocket ${item.id} has been ${newStatus}.`);
-        return { ...item, status: newStatus };
-      }
-      return item;
-    });
-    setData(updatedData);
+  const togglePocketStatus = async (record) => {
+    try {
+      await axios.post('/api/officer/pockets/toggle-status', { id: record.key });
+      
+      const newStatus = record.status === 'active' ? 'inactive' : 'active';
+      message.success(`Pocket ${formatId(record.id)} đã bị đổi thành ${newStatus.toUpperCase()}.`);
+      
+      fetchPockets(pagination.current, filterClient);
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái Ví');
+    }
   };
 
-  const handleCreate = (values) => {
-    const { client, currency, balance } = values;
-    const prefix = client === 'system' ? 'sys_' : 'bank_';
-    const newId = prefix + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    
-    // Simulate MD5 hash creation
-    const pseudoChecksum = Array.from({length: 32}, () => Math.floor(Math.random() * 16).toString(16)).join('');
-
-    const newPocket = {
-      key: Date.now().toString(),
-      id: newId,
-      user: null, // System/Bank has no user
-      client,
-      currency,
-      balance: balance || 0,
-      checksum: pseudoChecksum,
-      state: 'active',
-      status: 'active'
-    };
-
-    setData([...data, newPocket]);
-    message.success(`Tạo thành công ${client.toUpperCase()} Pocket với ID: ${newId}`);
-    setIsModalVisible(false);
+  const handleCreate = async (values) => {
+    try {
+      await axios.post('/api/officer/pockets/create', values);
+      
+      message.success(`Tạo thành công ${values.client.toUpperCase()} Pocket!`);
+      setIsModalVisible(false);
+      form.resetFields();
+      
+      setPagination(prev => ({ ...prev, current: 1 }));
+      fetchPockets(1, filterClient);
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi khi tạo Pocket!');
+    }
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Select 
+          value={filterClient} 
+          style={{ width: 220 }} 
+          size="large"
+          onChange={handleFilterChange}
+        >
+          <Select.Option value="">Tất cả Client</Select.Option>
+          <Select.Option value="customer">Khách hàng cá nhân (Customer)</Select.Option>
+          <Select.Option value="biller">Nhà cung cấp (Biller)</Select.Option>
+          <Select.Option value="system">Ví hệ thống trung tâm (System)</Select.Option>
+          <Select.Option value="bank">Ví liên kết ngân hàng (Bank)</Select.Option>
+        </Select>
         <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={showModal} style={{ background: '#0ea5e9' }}>Create System/Bank Pocket</Button>
       </div>
       <Card className="glass-card">
-        <Table columns={columns} dataSource={data} pagination={false} rowClassName="smart-row" />
+        <Table 
+          columns={columns} 
+          dataSource={data} 
+          pagination={{ ...pagination, showSizeChanger: false }} 
+          onChange={handleTableChange}
+          loading={loading}
+          rowClassName="smart-row" 
+        />
       </Card>
 
       <Modal

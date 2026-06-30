@@ -144,7 +144,7 @@ export default function BillerManagement() {
         </Space>
         <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)} style={{ background: '#0ea5e9' }}>Add Biller</Button>
       </div>
-      <Card className="glass-card" bodyStyle={{ padding: 0, overflow: 'hidden' }}>
+      <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden' } }}>
         <Table 
           columns={columns} 
           dataSource={data} 
@@ -160,7 +160,7 @@ export default function BillerManagement() {
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleAddSubmit} style={{ marginTop: 24 }}>

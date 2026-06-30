@@ -167,7 +167,7 @@ export default function PocketManagement() {
         okText="Create Pocket"
         okButtonProps={{ style: { background: '#0ea5e9' } }}
         cancelText="Cancel"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form 
           form={form} 

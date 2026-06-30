@@ -150,7 +150,7 @@ export default function CustomerDashboard() {
             title={<Title level={5} style={{ margin: 0 }}>Recent Transactions</Title>}
             className="glass-card" 
             style={{ borderRadius: 24 }}
-            bodyStyle={{ padding: 0 }}
+            styles={{ body: { padding: 0 } }}
             extra={<Button type="link" onClick={() => navigate('/app/history')}>View All</Button>}
           >
             <List

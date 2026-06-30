@@ -1,44 +1,45 @@
-import React, { useState } from 'react';
-import { Card, Typography, Table, Tag, Space, Button, Modal, Form, Input, Popconfirm } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Typography, Table, Tag, Space, Button, Modal, Form, Input, Popconfirm, message } from 'antd';
 import { PlusOutlined, SettingOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import axios from '../../utils/axios';
 
 const { Text } = Typography;
 
 export default function ServiceManagement() {
   const navigate = useNavigate();
 
-  const [data, setData] = useState([
-    { key: '1', code: 'P2P_TRANSFER', name: 'Chuyển tiền P2P', status: 'active' },
-    { key: '2', code: 'CASH_IN', name: 'Nạp tiền vào ví', status: 'active' },
-    { key: '3', code: 'BILL_PAYMENT', name: 'Thanh toán hoá đơn', status: 'active' },
-  ]);
-
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
 
+  const fetchServices = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post('/api/officer/services/list');
+      if (res.data && res.data.data && res.data.data.items) {
+        setData(res.data.data.items.map(s => ({ ...s, key: s.id || s._id })));
+      }
+    } catch (error) {
+      message.error('Lỗi khi tải danh sách dịch vụ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
   const handleToggleStatus = (record) => {
-    setData(prev => prev.map(item =>
-      item.key === record.key
-        ? { ...item, status: item.status === 'active' ? 'inactive' : 'active' }
-        : item
-    ));
+    // TBD: Backend API to toggle status
+    message.info('Tính năng đổi trạng thái chưa được nối API!');
   };
 
   const handleAddService = () => {
-    form.validateFields().then(values => {
-      const newService = {
-        key: Date.now().toString(),
-        code: values.code,
-        name: values.name,
-        status: 'active',
-      };
-      setData(prev => [...prev, newService]);
-      setIsModalVisible(false);
-      form.resetFields();
-    }).catch(err => {
-      console.log('Validation failed:', err);
-    });
+    // Chuyển hướng sang ServiceBuilder thay vì dùng Modal cũ
+    navigate('/officer/service-builder');
   };
 
   const columns = [
@@ -63,7 +64,7 @@ export default function ServiceManagement() {
             size="small"
             type="primary"
             icon={<SettingOutlined />}
-            onClick={() => navigate('/officer/transaction-design')}
+            onClick={() => navigate(`/officer/service-builder/${record.key}`)}
             style={{ background: '#0ea5e9' }}
           >
             Config
@@ -97,12 +98,12 @@ export default function ServiceManagement() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={handleAddService}>
           New Service
         </Button>
       </div>
 
-      <Card className="glass-card" bodyStyle={{ padding: 0, overflow: 'hidden' }}>
+      <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden' } }}>
         <Table columns={columns} dataSource={data} pagination={false} rowClassName="smart-row" />
       </Card>
 

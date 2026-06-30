@@ -4,7 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import OfficerLayout from './components/OfficerLayout';
 import OfficerLogin from './pages/officer/OfficerLogin';
 import ServiceManagement from './pages/officer/ServiceManagement';
-import TransactionDesign from './pages/officer/TransactionDesign';
+import ServiceBuilder from './pages/officer/ServiceBuilder';
 import PocketManagement from './pages/officer/PocketManagement';
 import BillerManagement from './pages/officer/BillerManagement';
 import CustomerManagement from './pages/officer/CustomerManagement';
@@ -33,7 +33,8 @@ function App() {
             <Route index element={<Navigate to="/officer/login" replace />} />
             <Route path="login" element={<OfficerLogin />} />
             <Route path="services" element={<ServiceManagement />} />
-            <Route path="transaction-design" element={<TransactionDesign />} />
+            <Route path="service-builder" element={<ServiceBuilder />} />
+            <Route path="service-builder/:id" element={<ServiceBuilder />} />
             <Route path="pockets" element={<PocketManagement />} />
             <Route path="billers" element={<BillerManagement />} />
             <Route path="customers" element={<CustomerManagement />} />

@@ -105,7 +105,7 @@ export default function TransactionHistory() {
           />
         </Space>
       </div>
-      <Card className="glass-card" bodyStyle={{ padding: 0, overflow: 'hidden' }}>
+      <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden' } }}>
         <Table 
           columns={columns} 
           dataSource={data} 

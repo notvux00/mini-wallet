@@ -64,4 +64,8 @@ module.exports.policies = {
     '*': ['isAuthorized', 'isOfficer'] 
   },
 
+  'OfficerServiceController': {
+    '*': ['isAuthorized', 'isOfficer']
+  },
+
 };

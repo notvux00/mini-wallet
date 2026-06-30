@@ -108,7 +108,7 @@ export default function CustomerManagement() {
           size="large"
         />
       </div>
-      <Card className="glass-card" bodyStyle={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+      <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden', marginBottom: 16 } }}>
         <Table 
           columns={columns} 
           dataSource={data} 
@@ -124,7 +124,7 @@ export default function CustomerManagement() {
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         width={500}
       >
         {selectedCustomer && (

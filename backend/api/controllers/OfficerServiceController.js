@@ -5,18 +5,259 @@
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
 
+// ─── Error Codes cho Service Configurator ────────────────────────────────────
+// Format: 5xxx = Service Config domain
+const SVC_ERR = {
+  FIELD_BASE:               5001, // Lỗi field nhập liệu (base, +index để phân biệt)
+  SENDER_NOT_FOUND:         5010, // Không tìm thấy ví người gửi
+  RECEIVER_NOT_FOUND:       5011, // Không tìm thấy ví người nhận
+  BILLER_NOT_FOUND:         5012, // Không tìm thấy ví Biller
+  CURRENCY_INVALID:         5020, // Đơn vị tiền tệ không hợp lệ
+  SAME_SENDER:              5030, // Người nhận trùng người gửi
+  INSUFFICIENT_BALANCE:     5031, // Số dư không đủ (bao gồm phí)
+  MIN_AMOUNT:               5032, // Số tiền dưới mức tối thiểu
+  SERVICE_NOT_ACTIVE:       5040, // Dịch vụ đang active, phải tắt trước khi sửa
+  SERVICE_ALREADY_INACTIVE: 5041, // Dịch vụ đã inactive rồi
+};
+
+// ─── Private Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Xây dựng mảng fieldBuilder từ danh sách field của Officer.
+ * Tự động bổ sung các biến hệ thống (CURRENCY, SENDERID, RECEIVERID).
+ */
+function _buildFieldBuilder(fields, serviceInfo) {
+  const fieldBuilder = fields.map((f, i) => ({
+    order: i + 1,
+    name: f.variableName,
+    rule: 'mapping',
+    source: 'parameters',
+    variable: f.variableName,
+    datatype: f.type,
+  }));
+
+  let orderIndex = fieldBuilder.length + 1;
+
+  // Biến hệ thống: Đơn vị tiền tệ cố định
+  fieldBuilder.push({
+    order: orderIndex++,
+    name: 'CURRENCY',
+    rule: 'fixed',
+    source: '',
+    variable: 'VND',
+    datatype: 'string',
+    errorCode: SVC_ERR.CURRENCY_INVALID,
+    errorMessage: 'Đơn vị tiền tệ không hợp lệ.',
+  });
+
+  // Biến hệ thống: ID Ví người gửi (luôn lấy từ session user)
+  fieldBuilder.push({
+    order: orderIndex++,
+    name: 'SENDERID',
+    rule: 'query',
+    source: 'system',
+    variable: 'queryPocketByUserId(USERID).id',
+    datatype: 'string',
+    errorCode: SVC_ERR.SENDER_NOT_FOUND,
+    errorMessage: 'Không tìm thấy ví của người gửi.',
+  });
+
+  // Biến hệ thống: ID Ví người nhận (P2P lấy từ SĐT, billerTrans lấy từ config Bill)
+  if (!serviceInfo.action || serviceInfo.action === 'none') {
+    fieldBuilder.push({
+      order: orderIndex++,
+      name: 'RECEIVERID',
+      rule: 'query',
+      source: 'system',
+      variable: 'queryPocketByPhone(RECEIVERPHONE).id',
+      datatype: 'string',
+      errorCode: SVC_ERR.RECEIVER_NOT_FOUND,
+      errorMessage: 'Không tìm thấy ví của người nhận.',
+    });
+  } else {
+    const billerVar =
+      serviceInfo.actionParams && serviceInfo.actionParams.billerIdField
+        ? serviceInfo.actionParams.billerIdField
+        : 'BILLERID';
+    fieldBuilder.push({
+      order: orderIndex++,
+      name: 'RECEIVERID',
+      rule: 'query',
+      source: 'system',
+      variable: `queryPocketByBillerId(${billerVar}).id`,
+      datatype: 'string',
+      errorCode: SVC_ERR.BILLER_NOT_FOUND,
+      errorMessage: 'Không tìm thấy ví của nhà cung cấp dịch vụ.',
+    });
+  }
+
+  return fieldBuilder;
+}
+
+/**
+ * Xây dựng mảng TransField records từ danh sách field của Officer.
+ *
+ * TRANSBODY chỉ dựng từ các fieldName khai trong TransField (WEEK2 §9).
+ * Vì vậy, ngoài các field Officer định nghĩa, cần tạo đủ record cho TẤT CẢ
+ * biến hệ thống mà fieldBuilder inject (SERVICEID, CURRENCY, SENDERID, RECEIVERID).
+ */
+function _buildTransFields(fields, serviceId, serviceInfo) {
+  // ── Các biến hệ thống bắt buộc ───────────────────────────────────────────
+  // Engine chỉ đưa vào TRANSBODY những field có khai trong TransField.
+  // Thiếu bất kỳ record nào dưới đây → glSteps chạy với undefined.
+
+  const systemFields = [
+    {
+      fieldName: 'SERVICEID',
+      fieldFormat: 'string',
+      isRequired: true,
+      order: 0,
+      errorCode: SVC_ERR.FIELD_BASE,
+      errorMessage: 'Không tìm thấy cấu hình dịch vụ.',
+    },
+    {
+      fieldName: 'CURRENCY',
+      fieldFormat: 'string',
+      isRequired: true,
+      order: 1000, // đặt cao để không xung đột với Officer fields
+      errorCode: SVC_ERR.CURRENCY_INVALID,
+      errorMessage: 'Đơn vị tiền tệ không hợp lệ.',
+    },
+    {
+      fieldName: 'SENDERID',
+      fieldFormat: 'string',
+      isRequired: true,
+      order: 1001,
+      errorCode: SVC_ERR.SENDER_NOT_FOUND,
+      errorMessage: 'Không tìm thấy ví của người gửi.',
+    },
+    {
+      fieldName: 'RECEIVERID',
+      fieldFormat: 'string',
+      isRequired: true,
+      order: 1002,
+      errorCode: SVC_ERR.RECEIVER_NOT_FOUND,
+      errorMessage: 'Không tìm thấy ví của người nhận.',
+    },
+  ].map(f => ({
+    service: serviceId,
+    minLength: null,
+    maxLength: null,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...f,
+  }));
+
+  // ── Các field do Officer định nghĩa (Wizard Bước 2) ──────────────────────
+  const officerFields = fields.map((f, i) => ({
+    service: serviceId,
+    fieldName: f.variableName,
+    fieldFormat: f.type,
+    isRequired: f.required,
+    minLength: f.minLength || null,
+    maxLength: f.maxLength || null,
+    errorCode: f.errorCode || SVC_ERR.FIELD_BASE + (i + 1),
+    errorMessage: f.errorMessage || `Trường "${f.variableName}" không hợp lệ.`,
+    order: i + 1,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  }));
+
+  return [...systemFields, ...officerFields];
+}
+
+
+/**
+ * Xây dựng mảng TransValidation records từ object rules của Officer.
+ * minAmountValue: giá trị tối thiểu (mặc định 10000 nếu không truyền).
+ */
+function _buildValidations(rules, serviceId) {
+  const validations = [];
+  let order = 1;
+
+  if (rules.notSameSender) {
+    validations.push({
+      service: serviceId,
+      validateFunc: 'validateReceiverIsNotSender',
+      validateFields: 'SENDERID:RECEIVERID',
+      order: order++,
+      errorCode: SVC_ERR.SAME_SENDER,
+      errorMessage: 'Người nhận không được trùng với người gửi.',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
+  if (rules.checkBalance) {
+    validations.push({
+      service: serviceId,
+      validateFunc: 'validateSenderAccountSufficiency',
+      validateFields: 'SENDERID:AMOUNT:DEBITFEE',
+      order: order++,
+      errorCode: SVC_ERR.INSUFFICIENT_BALANCE,
+      errorMessage: 'Số dư không đủ để thực hiện giao dịch (bao gồm phí).',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
+  if (rules.minAmount) {
+    const threshold = rules.minAmountValue || 10000;
+    validations.push({
+      service: serviceId,
+      validateFunc: 'validateMinAmount',
+      validateFields: `AMOUNT:${threshold}`,
+      order: order++,
+      errorCode: SVC_ERR.MIN_AMOUNT,
+      errorMessage: `Số tiền giao dịch tối thiểu là ${threshold.toLocaleString('vi-VN')}đ.`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
+  return validations;
+}
+
+/**
+ * Chuyển đổi giá trị Dropdown (từ Frontend) sang format glSteps của Engine.
+ */
+function _mapGlTarget(val) {
+  const mapping = {
+    SENDER:      { level: 'productLevel', target: 'SENDERID' },
+    RECEIVER:    { level: 'productLevel', target: 'RECEIVERID' },
+    SYSTEM_FEE:  { level: 'wallet',       target: 'SYS_FEE'   },
+    SYSTEM_PROMO:{ level: 'wallet',       target: 'SYS_PROMO' },
+    BANK:        { level: 'wallet',       target: 'SYS_BANK'  },
+  };
+  return mapping[val] || { level: 'wallet', target: val };
+}
+
+/**
+ * Xây dựng mảng glSteps từ các AccountingCard của Officer.
+ */
+function _buildGlSteps(accountingSteps) {
+  return accountingSteps.map((step, i) => ({
+    order: i,
+    amount: step.amountVar,
+    debit: _mapGlTarget(step.from),
+    credit: _mapGlTarget(step.to),
+  }));
+}
+
+// ─── Controller Actions ───────────────────────────────────────────────────────
+
 module.exports = {
 
   // Lấy danh sách các dịch vụ hiện tại từ Database
   list: async function (req, res) {
     try {
-      const services = await Service.find();
+      const { page = 1, limit = 20 } = req.body;
+      const skip = (page - 1) * limit;
+
+      const services = await Service.find({ skip, limit }).sort('createdAt DESC');
       const total = await Service.count();
-      
-      return res.ok({
-        items: services,
-        total: total
-      }, 'Lấy danh sách dịch vụ thành công!');
+
+      return res.ok({ items: services, total, page, limit }, 'Lấy danh sách dịch vụ thành công!');
     } catch (error) {
       sails.log.error('Lỗi lấy danh sách dịch vụ:', error);
       return res.error('SERVER_ERROR', 'Hệ thống đang bận.');
@@ -27,73 +268,18 @@ module.exports = {
   create: async function (req, res) {
     try {
       const { serviceInfo, fields, rules, accountingSteps } = req.body;
-      
-      // 1. Build fieldBuilder từ mảng fields
-      const fieldBuilder = fields.map((f, i) => ({
-        order: i + 1,
-        name: f.variableName,
-        rule: 'mapping',
-        source: 'parameters',
-        variable: f.variableName,
-        datatype: f.type
-      }));
-      
-      // UNDER THE HOOD: Tự động nhét thêm các Rule ngầm để Engine hoạt động
-      let orderIndex = fieldBuilder.length + 1;
-      
-      fieldBuilder.push({
-        order: orderIndex++,
-        name: 'CURRENCY',
-        rule: 'fixed',
-        source: '',
-        variable: 'VND',
-        datatype: 'string',
-        errorCode: 'ERR_CURRENCY'
-      });
-      
-      fieldBuilder.push({
-        order: orderIndex++,
-        name: 'SENDERID',
-        rule: 'query',
-        source: 'system',
-        variable: 'queryPocketByUserId(USERID).id',
-        datatype: 'string',
-        errorCode: 'ERR_SENDER_POCKET_NOT_FOUND'
-      });
-      
-      // Nếu là dịch vụ P2P (ko gọi hệ thống ngoài) thì tự lấy Ví nhận từ SĐT
-      if (!serviceInfo.action || serviceInfo.action === 'none') {
-        fieldBuilder.push({
-          order: orderIndex++,
-          name: 'RECEIVERID',
-          rule: 'query',
-          source: 'system',
-          variable: 'queryPocketByPhone(RECEIVERPHONE).id',
-          datatype: 'string',
-          errorCode: 'ERR_RECEIVER_POCKET_NOT_FOUND'
-        });
-      } else {
-        // Dành cho dịch vụ Bill Payment (lấy từ config Bill)
-        const billerVar = (serviceInfo.actionParams && serviceInfo.actionParams.billerIdField) ? serviceInfo.actionParams.billerIdField : 'BILLERID';
-        fieldBuilder.push({
-          order: orderIndex++,
-          name: 'RECEIVERID',
-          rule: 'query',
-          source: 'system',
-          variable: `queryPocketByBillerId(${billerVar}).id`,
-          datatype: 'string',
-          errorCode: 'ERR_BILLER_POCKET_NOT_FOUND'
-        });
-      }
-      
-      // KHỞI TẠO NATIVE MONGODB TRANSACTION ĐỂ ĐẢM BẢO TÍNH ACID (Vì sails-mongo không support waterline .transaction())
+
+      const fieldBuilder = _buildFieldBuilder(fields, serviceInfo);
+      const glSteps = _buildGlSteps(accountingSteps);
+
+      // ACID Transaction: lưu vào 4 bảng cùng lúc, all-or-nothing
       const client = sails.getDatastore().manager.client;
       const db = client.db();
       const session = client.startSession();
-      
+
       try {
         await session.withTransaction(async () => {
-          // 2. Tạo record trong bảng Service (dùng native driver)
+          // 1. Tạo record Service
           const serviceResult = await db.collection('service').insertOne({
             code: serviceInfo.serviceCode,
             name: serviceInfo.serviceName,
@@ -104,122 +290,56 @@ module.exports = {
             status: 'active',
             fieldBuilder: fieldBuilder,
             createdAt: Date.now(),
-            updatedAt: Date.now()
+            updatedAt: Date.now(),
           }, { session });
-          
-          const serviceIdStr = serviceResult.insertedId.toString();
-          
-          // 3. Tạo các record trong bảng TransField
-          const transFieldsToCreate = fields.map((f, i) => ({
-            service: serviceIdStr,
-            fieldName: f.variableName,
-            fieldFormat: f.type,
-            isRequired: f.required,
-            minLength: f.minLength || null,
-            maxLength: f.maxLength || null,
-            errorCode: f.errorCode || `ERR_FIELD_${f.variableName}`,
-            errorMessage: f.errorMessage || null,
-            order: i + 1,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          }));
-          
-          await db.collection('transfield').insertMany(transFieldsToCreate, { session });
-          
-          // 4. Tạo các record trong bảng TransValidation
-          const validationsToCreate = [];
-          let order = 1;
-          
-          if (rules.notSameSender) {
-            validationsToCreate.push({
-              service: serviceIdStr,
-              validateFunc: 'validateReceiverIsNotSender',
-              validateFields: 'SENDERID:RECEIVERID',
-              order: order++,
-              errorCode: 'ERR_SAME_SENDER',
-              createdAt: Date.now(),
-              updatedAt: Date.now()
-            });
+
+          const serviceId = serviceResult.insertedId.toString();
+
+          // 2. Tạo các TransField records
+          const transFields = _buildTransFields(fields, serviceId, serviceInfo);
+          if (transFields.length > 0) {
+            await db.collection('transfield').insertMany(transFields, { session });
           }
-          if (rules.checkBalance) {
-            validationsToCreate.push({
-              service: serviceIdStr,
-              validateFunc: 'validateSenderAccountSufficiency',
-              validateFields: 'SENDERID:AMOUNT:DEBITFEE',
-              order: order++,
-              errorCode: 'ERR_INSUFFICIENT_BALANCE',
-              createdAt: Date.now(),
-              updatedAt: Date.now()
-            });
+
+          // 3. Tạo các TransValidation records
+          const validations = _buildValidations(rules, serviceId);
+          if (validations.length > 0) {
+            await db.collection('transvalidation').insertMany(validations, { session });
           }
-          if (rules.minAmount) {
-            validationsToCreate.push({
-              service: serviceIdStr,
-              validateFunc: 'validateMinAmount',
-              validateFields: 'AMOUNT:10000',
-              order: order++,
-              errorCode: 'ERR_MIN_AMOUNT',
-              createdAt: Date.now(),
-              updatedAt: Date.now()
-            });
-          }
-          
-          if (validationsToCreate.length > 0) {
-            await db.collection('transvalidation').insertMany(validationsToCreate, { session });
-          }
-          
-          // 5. Tạo record trong bảng TransDefinition (glSteps)
-          const glSteps = accountingSteps.map((step, i) => {
-            // Hàm quy đổi ví từ Dropdown Frontend sang Format Backend
-            const mapTarget = (val) => {
-              if (val === 'SENDER') return { level: 'productLevel', target: 'SENDERID' };
-              if (val === 'RECEIVER') return { level: 'productLevel', target: 'RECEIVERID' };
-              if (val === 'SYSTEM_FEE') return { level: 'wallet', target: 'SYS_FEE' };
-              if (val === 'SYSTEM_PROMO') return { level: 'wallet', target: 'SYS_PROMO' };
-              if (val === 'BANK') return { level: 'wallet', target: 'SYS_BANK' };
-              return { level: 'wallet', target: val };
-            };
-            
-            return {
-              order: i,
-              amount: step.amountVar,
-              debit: mapTarget(step.from),
-              credit: mapTarget(step.to)
-            };
-          });
-          
+
+          // 4. Tạo TransDefinition (glSteps)
           await db.collection('transdefinition').insertOne({
-            service: serviceIdStr,
+            service: serviceId,
             glSteps: glSteps,
             status: 'active',
             createdAt: Date.now(),
-            updatedAt: Date.now()
+            updatedAt: Date.now(),
           }, { session });
         });
       } finally {
         await session.endSession();
       }
-      
-      return res.ok(null, 'Lưu cấu hình Dịch vụ thành công (vào Database)!');
+
+      return res.ok(null, 'Lưu cấu hình Dịch vụ thành công!');
     } catch (error) {
-      sails.log.error('Lỗi lưu cấu hình dịch vụ DB:', error);
-      
-      // Bắt lỗi trùng mã Service
-      if (error.code === 'E_UNIQUE') {
-         return res.error('BAD_REQUEST', 'Mã Dịch vụ (Code) này đã tồn tại!');
+      sails.log.error('Lỗi lưu cấu hình dịch vụ:', error);
+
+      // MongoDB duplicate key (code: 11000) khi dùng native driver
+      if (error.code === 11000) {
+        return res.error('BAD_REQUEST', 'Mã Dịch vụ (Code) này đã tồn tại!');
       }
       return res.error('SERVER_ERROR', 'Hệ thống đang bận.');
     }
   },
 
-  // Xem chi tiết Dịch vụ (dùng cho Edit)
+  // Xem chi tiết Dịch vụ — dùng để load lại Form Edit
   detail: async function (req, res) {
     try {
       const { id } = req.body;
-      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ');
+      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');
 
       const service = await Service.findOne({ id });
-      if (!service) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại');
+      if (!service) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');
 
       const fields = await TransField.find({ service: id }).sort('order ASC');
       const validations = await TransValidation.find({ service: id }).sort('order ASC');
@@ -233,99 +353,55 @@ module.exports = {
           feeType: service.fee?.type || 'fixed',
           feeValue: service.fee?.value || 0,
           action: service.action || 'none',
-          actionParams: service.actionParams || {}
+          actionParams: service.actionParams || {},
+          status: service.status,
         },
         fields: fields,
         validations: validations,
-        accountingSteps: definition ? definition.glSteps : []
-      }, 'Lấy chi tiết dịch vụ thành công');
+        accountingSteps: definition ? definition.glSteps : [],
+      }, 'Lấy chi tiết dịch vụ thành công.');
     } catch (error) {
       sails.log.error('Lỗi lấy chi tiết dịch vụ:', error);
       return res.error('SERVER_ERROR', 'Hệ thống đang bận.');
     }
   },
 
-  // Cập nhật Dịch vụ (Edit)
+  // Cập nhật Dịch vụ — chỉ cho phép khi service đang INACTIVE (Maintenance Mode)
   update: async function (req, res) {
     try {
       const { id, serviceInfo, fields, rules, accountingSteps } = req.body;
-      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ');
+      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');
 
-      // 1. Build fieldBuilder từ mảng fields
-      const fieldBuilder = fields.map((f, i) => ({
-        order: i + 1,
-        name: f.variableName,
-        rule: 'mapping',
-        source: 'parameters',
-        variable: f.variableName,
-        datatype: f.type
-      }));
-      
-      // UNDER THE HOOD: Tự động nhét thêm các Rule ngầm để Engine hoạt động
-      let orderIndex = fieldBuilder.length + 1;
-      
-      fieldBuilder.push({
-        order: orderIndex++,
-        name: 'CURRENCY',
-        rule: 'fixed',
-        source: '',
-        variable: 'VND',
-        datatype: 'string',
-        errorCode: 'ERR_CURRENCY'
-      });
-      
-      fieldBuilder.push({
-        order: orderIndex++,
-        name: 'SENDERID',
-        rule: 'query',
-        source: 'system',
-        variable: 'queryPocketByUserId(USERID).id',
-        datatype: 'string',
-        errorCode: 'ERR_SENDER_POCKET_NOT_FOUND'
-      });
-      
-      // Nếu là dịch vụ P2P (ko gọi hệ thống ngoài) thì tự lấy Ví nhận từ SĐT
-      if (!serviceInfo.action || serviceInfo.action === 'none') {
-        fieldBuilder.push({
-          order: orderIndex++,
-          name: 'RECEIVERID',
-          rule: 'query',
-          source: 'system',
-          variable: 'queryPocketByPhone(RECEIVERPHONE).id',
-          datatype: 'string',
-          errorCode: 'ERR_RECEIVER_POCKET_NOT_FOUND'
-        });
-      } else {
-        // Dành cho dịch vụ Bill Payment (lấy từ config Bill)
-        const billerVar = (serviceInfo.actionParams && serviceInfo.actionParams.billerIdField) ? serviceInfo.actionParams.billerIdField : 'BILLERID';
-        fieldBuilder.push({
-          order: orderIndex++,
-          name: 'RECEIVERID',
-          rule: 'query',
-          source: 'system',
-          variable: `queryPocketByBillerId(${billerVar}).id`,
-          datatype: 'string',
-          errorCode: 'ERR_BILLER_POCKET_NOT_FOUND'
-        });
+      // ── Maintenance Mode Guard ──────────────────────────────────────────────
+      // Officer phải tắt dịch vụ trước khi được phép sửa cấu hình.
+      const existingService = await Service.findOne({ id });
+      if (!existingService) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');
+
+      if (existingService.status === 'active') {
+        return res.error('BAD_REQUEST',
+          'Dịch vụ đang hoạt động. Vui lòng tạm ngưng dịch vụ trước khi chỉnh sửa cấu hình.'
+        );
       }
-      
+      // ───────────────────────────────────────────────────────────────────────
+
+      const fieldBuilder = _buildFieldBuilder(fields, serviceInfo);
+      const glSteps = _buildGlSteps(accountingSteps);
+
       const client = sails.getDatastore().manager.client;
       const db = client.db();
       const session = client.startSession();
-      
-      const ObjectId = require('mongodb').ObjectId;
-      const objectId = new ObjectId(id);
-      
+      const { ObjectId } = require('mongodb');
+
       try {
         await session.withTransaction(async () => {
-          // Xóa config cũ
+          // Xóa toàn bộ config cũ (delete-then-insert strategy)
           await db.collection('transfield').deleteMany({ service: id }, { session });
           await db.collection('transvalidation').deleteMany({ service: id }, { session });
           await db.collection('transdefinition').deleteMany({ service: id }, { session });
 
-          // Cập nhật bảng Service
+          // Cập nhật bảng Service (giữ nguyên status = inactive)
           await db.collection('service').updateOne(
-            { _id: objectId },
+            { _id: new ObjectId(id) },
             {
               $set: {
                 name: serviceInfo.serviceName,
@@ -334,107 +410,66 @@ module.exports = {
                 auth: { method: serviceInfo.authMethod },
                 fee: { type: serviceInfo.feeType, value: Number(serviceInfo.feeValue) || 0 },
                 fieldBuilder: fieldBuilder,
-                updatedAt: Date.now()
+                updatedAt: Date.now(),
               }
             },
             { session }
           );
-          
-          // Tạo các record trong bảng TransField mới
-          const transFieldsToCreate = fields.map((f, i) => ({
-            service: id,
-            fieldName: f.variableName,
-            fieldFormat: f.type,
-            isRequired: f.required,
-            minLength: f.minLength || null,
-            maxLength: f.maxLength || null,
-            errorCode: f.errorCode || `ERR_FIELD_${f.variableName}`,
-            errorMessage: f.errorMessage || null,
-            order: i + 1,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          }));
-          
-          await db.collection('transfield').insertMany(transFieldsToCreate, { session });
-          
-          // Tạo các record trong bảng TransValidation mới
-          const validationsToCreate = [];
-          let order = 1;
-          
-          if (rules.notSameSender) {
-            validationsToCreate.push({
-              service: id,
-              validateFunc: 'validateReceiverIsNotSender',
-              validateFields: 'SENDERID:RECEIVERID',
-              order: order++,
-              errorCode: 'ERR_SAME_SENDER',
-              createdAt: Date.now(),
-              updatedAt: Date.now()
-            });
+
+          // Tạo lại TransField
+          const transFields = _buildTransFields(fields, id, serviceInfo);
+          if (transFields.length > 0) {
+            await db.collection('transfield').insertMany(transFields, { session });
           }
-          if (rules.checkBalance) {
-            validationsToCreate.push({
-              service: id,
-              validateFunc: 'validateSenderAccountSufficiency',
-              validateFields: 'SENDERID:AMOUNT:DEBITFEE',
-              order: order++,
-              errorCode: 'ERR_INSUFFICIENT_BALANCE',
-              createdAt: Date.now(),
-              updatedAt: Date.now()
-            });
+
+          // Tạo lại TransValidation
+          const validations = _buildValidations(rules, id);
+          if (validations.length > 0) {
+            await db.collection('transvalidation').insertMany(validations, { session });
           }
-          if (rules.minAmount) {
-            validationsToCreate.push({
-              service: id,
-              validateFunc: 'validateMinAmount',
-              validateFields: 'AMOUNT:10000',
-              order: order++,
-              errorCode: 'ERR_MIN_AMOUNT',
-              createdAt: Date.now(),
-              updatedAt: Date.now()
-            });
-          }
-          
-          if (validationsToCreate.length > 0) {
-            await db.collection('transvalidation').insertMany(validationsToCreate, { session });
-          }
-          
-          // Tạo record trong bảng TransDefinition mới
-          const glSteps = accountingSteps.map((step, i) => {
-            const mapTarget = (val) => {
-              if (val === 'SENDER') return { level: 'productLevel', target: 'SENDERID' };
-              if (val === 'RECEIVER') return { level: 'productLevel', target: 'RECEIVERID' };
-              if (val === 'SYSTEM_FEE') return { level: 'wallet', target: 'SYS_FEE' };
-              if (val === 'SYSTEM_PROMO') return { level: 'wallet', target: 'SYS_PROMO' };
-              if (val === 'BANK') return { level: 'wallet', target: 'SYS_BANK' };
-              return { level: 'wallet', target: val };
-            };
-            
-            return {
-              order: i,
-              amount: step.amountVar,
-              debit: mapTarget(step.from),
-              credit: mapTarget(step.to)
-            };
-          });
-          
+
+          // Tạo lại TransDefinition
           await db.collection('transdefinition').insertOne({
             service: id,
             glSteps: glSteps,
             status: 'active',
             createdAt: Date.now(),
-            updatedAt: Date.now()
+            updatedAt: Date.now(),
           }, { session });
         });
       } finally {
         await session.endSession();
       }
-      
+
       return res.ok(null, 'Cập nhật cấu hình Dịch vụ thành công!');
     } catch (error) {
-      sails.log.error('Lỗi cập nhật cấu hình dịch vụ DB:', error);
+      sails.log.error('Lỗi cập nhật cấu hình dịch vụ:', error);
       return res.error('SERVER_ERROR', 'Hệ thống đang bận.');
     }
-  }
+  },
+
+  // Bật / Tắt trạng thái dịch vụ (Maintenance Mode)
+  toggleStatus: async function (req, res) {
+    try {
+      const { id } = req.body;
+      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');
+
+      const service = await Service.findOne({ id });
+      if (!service) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');
+
+      const newStatus = service.status === 'active' ? 'inactive' : 'active';
+
+      await Service.updateOne({ id }).set({ status: newStatus, updatedAt: Date.now() });
+
+      const message = newStatus === 'inactive'
+        ? 'Dịch vụ đã được tạm ngưng. Bạn có thể chỉnh sửa cấu hình.'
+        : 'Dịch vụ đã được kích hoạt trở lại.';
+
+      return res.ok({ id, status: newStatus }, message);
+    } catch (error) {
+      sails.log.error('Lỗi toggle trạng thái dịch vụ:', error);
+      return res.error('SERVER_ERROR', 'Hệ thống đang bận.');
+    }
+  },
 
 };

@@ -48,10 +48,11 @@ module.exports.routes = {
   'POST /api/officer/trails/list': 'OfficerTrailController.list', // Danh sách toàn bộ dấu vết giao dịch (Transaction Trail)
   
   // APIs cho Service Configurator (Luồng Cấu Hình Động)
-  'POST /api/officer/services/create': 'OfficerServiceController.create',
   'POST /api/officer/services/list': 'OfficerServiceController.list',
+  'POST /api/officer/services/create': 'OfficerServiceController.create',
   'POST /api/officer/services/detail': 'OfficerServiceController.detail',
   'POST /api/officer/services/update': 'OfficerServiceController.update',
+  'POST /api/officer/services/toggle-status': 'OfficerServiceController.toggleStatus',
 
   /***************************************************************************
   *                                                                          *

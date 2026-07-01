@@ -1,4 +1,4 @@
-  module.exports = {
+module.exports = {
 
   attributes: {
 
@@ -19,8 +19,12 @@
       required: true,
     },
     errorCode: {
-      type: 'string',
+      type: 'number',
       required: true,
+    },
+    errorMessage: {
+      type: 'string',
+      allowNull: true,
     },
     status: {
       type: 'string',

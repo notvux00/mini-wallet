@@ -31,7 +31,7 @@ module.exports = {
       required: true,
     },
     errorCode: {
-      type: 'string',
+      type: 'number',
       allowNull: true,
     },
     errorMessage: {
@@ -47,4 +47,5 @@ module.exports = {
   },
 
 };
+
 

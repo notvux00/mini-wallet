@@ -35,8 +35,7 @@ module.exports = {
         rule: 'mapping',
         source: 'parameters',
         variable: f.variableName,
-        datatype: f.type,
-        errorCode: `ERR_${f.variableName}`
+        datatype: f.type
       }));
       
       // UNDER THE HOOD: Tự động nhét thêm các Rule ngầm để Engine hoạt động
@@ -116,23 +115,14 @@ module.exports = {
             fieldName: f.variableName,
             fieldFormat: f.type,
             isRequired: f.required,
+            minLength: f.minLength || null,
+            maxLength: f.maxLength || null,
+            errorCode: f.errorCode || `ERR_FIELD_${f.variableName}`,
+            errorMessage: f.errorMessage || null,
             order: i + 1,
-            errorCode: `ERR_FIELD_${f.variableName}`,
             createdAt: Date.now(),
             updatedAt: Date.now()
           }));
-          
-          // Luôn có trường SERVICEID ẩn theo Design Brief
-          transFieldsToCreate.unshift({
-            service: serviceIdStr,
-            fieldName: 'SERVICEID',
-            fieldFormat: 'string',
-            isRequired: true,
-            order: 0,
-            errorCode: 'ERR_MISSING_SERVICEID',
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          });
           
           await db.collection('transfield').insertMany(transFieldsToCreate, { session });
           
@@ -268,8 +258,7 @@ module.exports = {
         rule: 'mapping',
         source: 'parameters',
         variable: f.variableName,
-        datatype: f.type,
-        errorCode: `ERR_${f.variableName}`
+        datatype: f.type
       }));
       
       // UNDER THE HOOD: Tự động nhét thêm các Rule ngầm để Engine hoạt động
@@ -357,22 +346,14 @@ module.exports = {
             fieldName: f.variableName,
             fieldFormat: f.type,
             isRequired: f.required,
+            minLength: f.minLength || null,
+            maxLength: f.maxLength || null,
+            errorCode: f.errorCode || `ERR_FIELD_${f.variableName}`,
+            errorMessage: f.errorMessage || null,
             order: i + 1,
-            errorCode: `ERR_FIELD_${f.variableName}`,
             createdAt: Date.now(),
             updatedAt: Date.now()
           }));
-          
-          transFieldsToCreate.unshift({
-            service: id,
-            fieldName: 'SERVICEID',
-            fieldFormat: 'string',
-            isRequired: true,
-            order: 0,
-            errorCode: 'ERR_MISSING_SERVICEID',
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          });
           
           await db.collection('transfield').insertMany(transFieldsToCreate, { session });
           

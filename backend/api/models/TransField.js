@@ -22,17 +22,9 @@ module.exports = {
       type: 'number',
       allowNull: true,
     },
-    regex: {
-      type: 'string',
-      allowNull: true,
-    },
     isRequired: {
       type: 'boolean',
       defaultsTo: true,
-    },
-    needSecured: {
-      type: 'boolean',
-      defaultsTo: false,
     },
     order: {
       type: 'number',
@@ -40,7 +32,11 @@ module.exports = {
     },
     errorCode: {
       type: 'string',
-      required: true,
+      allowNull: true,
+    },
+    errorMessage: {
+      type: 'string',
+      allowNull: true,
     },
     status: {
       type: 'string',

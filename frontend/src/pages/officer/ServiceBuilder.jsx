@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, Button, Select, Card, Switch, Checkbox, Space, Typography, Popconfirm, message, Row, Col } from 'antd';
+import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Checkbox, Space, Typography, Popconfirm, message, Row, Col, Collapse } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, MobileOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../../utils/axios';
@@ -44,7 +44,11 @@ export default function ServiceBuilder() {
                 label: f.fieldName, // Vì DB backend ko lưu label tiếng việt, ta tạm dùng fieldName
                 type: f.fieldFormat,
                 required: f.isRequired,
-                variableName: f.fieldName
+                variableName: f.fieldName,
+                minLength: f.minLength,
+                maxLength: f.maxLength,
+                errorCode: f.errorCode,
+                errorMessage: f.errorMessage
               })));
             }
             
@@ -87,7 +91,7 @@ export default function ServiceBuilder() {
 
   // Handle Input Fields
   const addInputField = () => {
-    setInputFields([...inputFields, { id: Date.now().toString(), label: 'Tên trường', type: 'string', required: false, variableName: 'NEW_VAR' }]);
+    setInputFields([...inputFields, { id: Date.now().toString(), label: 'Tên trường', type: 'string', required: false, variableName: 'NEW_VAR', minLength: null, maxLength: null, errorCode: '', errorMessage: '' }]);
   };
   const removeInputField = (id) => {
     setInputFields(inputFields.filter(f => f.id !== id));
@@ -115,8 +119,15 @@ export default function ServiceBuilder() {
         return;
       }
       
+      const finalBasicInfo = { ...basicInfo };
+      if (finalBasicInfo.action === 'billerTrans') {
+        if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
+        if (!finalBasicInfo.actionParams.billerIdField) finalBasicInfo.actionParams.billerIdField = 'BILLERID';
+        if (!finalBasicInfo.actionParams.customerCodeField) finalBasicInfo.actionParams.customerCodeField = 'BILLCODE';
+      }
+      
       const payload = {
-        serviceInfo: basicInfo,
+        serviceInfo: finalBasicInfo,
         fields: inputFields,
         rules: validations,
         accountingSteps: glSteps
@@ -144,7 +155,7 @@ export default function ServiceBuilder() {
       icon: <SettingOutlined />,
       content: (
         <Card title="Thông tin cơ bản" className="glass-card">
-          <Form form={form} layout="vertical" initialValues={basicInfo} onValuesChange={(_, allValues) => setBasicInfo(allValues)}>
+          <Form form={form} layout="vertical" initialValues={basicInfo} onValuesChange={(_, allValues) => setBasicInfo(prev => ({ ...prev, ...allValues }))}>
             <Row gutter={24}>
               <Col span={12}>
                 <Form.Item name="serviceName" label="Tên Dịch vụ hiển thị" rules={[{ required: true }]}>
@@ -228,6 +239,30 @@ export default function ServiceBuilder() {
                   <Button danger type="text" icon={<DeleteOutlined />} onClick={() => removeInputField(field.id)} style={{ marginTop: 22 }} />
                 </Col>
               </Row>
+              <Collapse ghost size="small" items={[{
+                key: '1',
+                label: 'Thiết lập nâng cao',
+                children: (
+                  <Row gutter={16}>
+                    <Col span={6}>
+                      <Text strong>Độ dài tối thiểu:</Text>
+                      <InputNumber style={{ width: '100%', marginTop: 4 }} value={field.minLength} onChange={val => updateInputField(field.id, 'minLength', val)} />
+                    </Col>
+                    <Col span={6}>
+                      <Text strong>Độ dài tối đa:</Text>
+                      <InputNumber style={{ width: '100%', marginTop: 4 }} value={field.maxLength} onChange={val => updateInputField(field.id, 'maxLength', val)} />
+                    </Col>
+                    <Col span={12} style={{ marginTop: 12 }}>
+                      <Text strong>Mã lỗi tuỳ chỉnh (Error Code):</Text>
+                      <Input style={{ marginTop: 4 }} value={field.errorCode} placeholder="VD: ERR_INVALID_DATA" onChange={e => updateInputField(field.id, 'errorCode', e.target.value)} />
+                    </Col>
+                    <Col span={12} style={{ marginTop: 12 }}>
+                      <Text strong>Câu thông báo lỗi (Error Message):</Text>
+                      <Input style={{ marginTop: 4 }} value={field.errorMessage} placeholder="VD: Dữ liệu không hợp lệ" onChange={e => updateInputField(field.id, 'errorMessage', e.target.value)} />
+                    </Col>
+                  </Row>
+                )
+              }]} />
             </Card>
           ))}
           <Button type="dashed" onClick={addInputField} icon={<PlusOutlined />} block style={{ marginTop: 8 }}>

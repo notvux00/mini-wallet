@@ -190,7 +190,6 @@ export default function ServiceBuilder() {
                 </Form.Item>
               </Col>
             </Row>
-            </Row>
           </Form>
         </Card>
       ),

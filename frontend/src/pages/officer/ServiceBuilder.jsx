@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Checkbox, Space, Typography, Popconfirm, message, Row, Col, Collapse } from 'antd';
-import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, MobileOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, MobileOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../../utils/axios';
 
@@ -26,7 +26,22 @@ export default function ServiceBuilder() {
   const [glSteps, setGlSteps] = useState([
     { id: '1', amountVar: 'AMOUNT', from: 'SENDER', to: 'RECEIVER', title: 'Chuyển tiền gốc' }
   ]);
-  
+  const [systemPockets, setSystemPockets] = useState([]);
+
+  useEffect(() => {
+    const fetchSystemPockets = async () => {
+      try {
+        const res = await axios.post('/api/officer/pockets/list', { client: 'system', limit: 100 });
+        if (res.data && res.data.data) {
+          setSystemPockets(Array.isArray(res.data.data) ? res.data.data : (res.data.data.items || []));
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchSystemPockets();
+  }, []);
+
   // Lấy dữ liệu nếu là Edit
   useEffect(() => {
     if (id) {
@@ -39,7 +54,8 @@ export default function ServiceBuilder() {
             form.setFieldsValue(data.serviceInfo);
             
             if (data.fields && data.fields.length > 0) {
-              setInputFields(data.fields.filter(f => f.fieldName !== 'SERVICEID').map(f => ({
+              const hiddenFields = ['SERVICEID', 'SENDERID', 'RECEIVERID', 'CURRENCY'];
+              setInputFields(data.fields.filter(f => !hiddenFields.includes(f.fieldName)).map(f => ({
                 id: f.id || Math.random().toString(),
                 label: f.fieldName, // Vì DB backend ko lưu label tiếng việt, ta tạm dùng fieldName
                 type: f.fieldFormat,
@@ -63,20 +79,18 @@ export default function ServiceBuilder() {
             }
             
             if (data.accountingSteps && data.accountingSteps.length > 0) {
-              const reverseMap = (val) => {
-                if (val.target === 'SENDERID') return 'SENDER';
-                if (val.target === 'RECEIVERID') return 'RECEIVER';
-                if (val.target === 'SYS_FEE') return 'SYSTEM_FEE';
-                if (val.target === 'SYS_PROMO') return 'SYSTEM_PROMO';
+              const reverseMapTarget = (val) => {
+                if (val.level === 'productLevel' && val.target === 'SENDERID') return 'SENDER';
+                if (val.level === 'productLevel' && val.target === 'RECEIVERID') return 'RECEIVER';
                 if (val.target === 'SYS_BANK') return 'BANK';
-                return val.target;
+                return val.target; // Trả về thẳng Pocket ID của ví hệ thống
               };
               
               setGlSteps(data.accountingSteps.map((step, i) => ({
                 id: Math.random().toString(),
                 amountVar: step.amount,
-                from: reverseMap(step.debit),
-                to: reverseMap(step.credit),
+                from: reverseMapTarget(step.debit),
+                to: reverseMapTarget(step.credit),
                 title: `Bút toán ${i + 1}`
               })));
             }
@@ -102,7 +116,8 @@ export default function ServiceBuilder() {
 
   // Handle GL Steps
   const addGlStep = () => {
-    setGlSteps([...glSteps, { id: Date.now().toString(), amountVar: 'FEE', from: 'SENDER', to: 'SYSTEM_FEE', title: 'Bút toán mới' }]);
+    const defaultTo = systemPockets.length > 0 ? systemPockets[0].id : 'RECEIVER';
+    setGlSteps([...glSteps, { id: Date.now().toString(), amountVar: 'FEE', from: 'SENDER', to: defaultTo, title: 'Bút toán mới' }]);
   };
   const removeGlStep = (id) => {
     setGlSteps(glSteps.filter(s => s.id !== id));
@@ -124,6 +139,18 @@ export default function ServiceBuilder() {
         if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
         if (!finalBasicInfo.actionParams.billerIdField) finalBasicInfo.actionParams.billerIdField = 'BILLERID';
         if (!finalBasicInfo.actionParams.customerCodeField) finalBasicInfo.actionParams.customerCodeField = 'BILLCODE';
+      }
+      // P2P: đảm bảo receiverPhoneField được gửi lên (fallback 'RECEIVERPHONE' nếu Officer chưa chọn)
+      if (!finalBasicInfo.action || finalBasicInfo.action === 'none') {
+        if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
+        if (!finalBasicInfo.actionParams.receiverPhoneField) finalBasicInfo.actionParams.receiverPhoneField = 'RECEIVERPHONE';
+      }
+      // Cash-in: auth bắt buộc NONE, fallback bankPocketField và receiverPhoneField
+      if (finalBasicInfo.action === 'cashIn') {
+        if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
+        if (!finalBasicInfo.actionParams.bankPocketField) finalBasicInfo.actionParams.bankPocketField = 'BANKID';
+        if (!finalBasicInfo.actionParams.receiverPhoneField) finalBasicInfo.actionParams.receiverPhoneField = 'RECEIVERPHONE';
+        finalBasicInfo.authMethod = 'NONE'; // Cash-in không cần PIN
       }
       
       const payload = {
@@ -197,6 +224,7 @@ export default function ServiceBuilder() {
                   <Select size="large">
                     <Option value="none">Chuyển tiền nội bộ (P2P)</Option>
                     <Option value="billerTrans">Thanh toán Hóa đơn (Biller)</Option>
+                    <Option value="cashIn">Nạp tiền (Cash-in)</Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -206,12 +234,15 @@ export default function ServiceBuilder() {
       ),
     },
     {
-      title: 'Giao diện Nhập liệu',
-      icon: <MobileOutlined />,
+      title: 'Biến giao dịch',
+      icon: <UnorderedListOutlined />,
       content: (
-        <Card title="Khách hàng sẽ nhập gì?" className="glass-card">
+        <Card 
+          title="Định nghĩa tham số giao dịch (Transaction Payload)" 
+          className="glass-card"
+        >
           <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
-            Thêm các trường để khách hàng điền vào (Mã khách hàng, Lời nhắn, Số tiền...).
+            Khai báo cấu trúc dữ liệu (payload) mà Frontend / Client bắt buộc phải gửi lên Engine khi thực hiện giao dịch này.
           </Text>
           {inputFields.map((field, index) => (
             <Card key={field.id} size="small" style={{ marginBottom: 12, background: '#f8fafc', borderColor: '#e2e8f0' }}>
@@ -277,6 +308,110 @@ export default function ServiceBuilder() {
       content: (
         <Card title="Các điều kiện để giao dịch thành công" className="glass-card">
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            {/* Cash-in: Officer chọn ví Bank nguồn và biến SĐT khách hàng được nạp */}
+            {basicInfo.action === 'cashIn' && (
+              <Card type="inner" title="Cấu hình Nạp tiền (Cash-in)" style={{ borderColor: '#10b981' }}>
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+
+                  {/* Ánh xạ biến Ví Bank nguồn (chọn lúc giao dịch) */}
+                  <div>
+                    <Text strong>Tên biến chứa Mã Ví Bank nguồn (SENDERID):</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Lúc giao dịch, Officer sẽ chọn ví Bank nào để nạp — giá trị đó được map vào biến này.
+                      Chọn đúng field chứa Pocket ID của ví Bank đã định nghĩa ở Bước 2.
+                    </Text>
+                    <Select
+                      style={{ width: '100%', marginTop: 8 }}
+                      size="large"
+                      placeholder="Chọn biến chứa Pocket ID của ví Bank..."
+                      value={basicInfo.actionParams?.bankPocketField || undefined}
+                      onChange={(val) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, bankPocketField: val } })}
+                    >
+                      {inputFields.map(f => (
+                        <Option key={f.variableName} value={f.variableName}>
+                          {f.variableName} {f.label ? `(${f.label})` : ''}
+                        </Option>
+                      ))}
+                    </Select>
+                    {!basicInfo.actionParams?.bankPocketField && inputFields.length > 0 && (
+                      <Text type="warning" style={{ fontSize: 12 }}>
+                        ⚠️ Chưa chọn — engine sẽ mặc định tìm biến tên "BANKID"
+                      </Text>
+                    )}
+                  </div>
+
+                  {/* Chọn biến SĐT khách hàng */}
+                  <div>
+                    <Text strong>Tên biến chứa Số điện thoại khách hàng được nạp:</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Engine dùng biến này để tra cứu ví khách hàng cần nạp tiền.
+                    </Text>
+                    <Select
+                      style={{ width: '100%', marginTop: 8 }}
+                      size="large"
+                      placeholder="Chọn biến chứa SĐT khách..."
+                      value={basicInfo.actionParams?.receiverPhoneField || undefined}
+                      onChange={(val) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, receiverPhoneField: val } })}
+                    >
+                      {inputFields.map(f => (
+                        <Option key={f.variableName} value={f.variableName}>
+                          {f.variableName} {f.label ? `(${f.label})` : ''}
+                        </Option>
+                      ))}
+                    </Select>
+                    {!basicInfo.actionParams?.receiverPhoneField && inputFields.length > 0 && (
+                      <Text type="warning" style={{ fontSize: 12 }}>
+                        ⚠️ Chưa chọn — engine sẽ mặc định tìm biến tên "RECEIVERPHONE"
+                      </Text>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '8px 12px', background: '#ecfdf5', borderRadius: 6, border: '1px solid #6ee7b7' }}>
+                    <Text style={{ color: '#065f46', fontSize: 12 }}>
+                      ℹ️ Auth tự động được đặt là <strong>NONE</strong> — Cash-in do Officer thực hiện, không cần PIN khách hàng.
+                    </Text>
+                  </div>
+
+                </Space>
+              </Card>
+            )}
+
+            {/* P2P: Officer chọn biến nào chứa SĐT người nhận */}
+            {(!basicInfo.action || basicInfo.action === 'none') && (
+              <Card type="inner" title="Ánh xạ Biến Người nhận (Dành riêng cho P2P)" style={{ borderColor: '#8b5cf6' }}>
+                <Row gutter={24}>
+                  <Col span={24}>
+                    <Text strong>Tên biến chứa Số điện thoại người nhận:</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Engine sẽ dùng biến này để tra cứu ví người nhận. Chọn đúng field SĐT bạn đã định nghĩa ở Bước 2.
+                    </Text>
+                    <Select
+                      style={{ width: '100%', marginTop: 8 }}
+                      size="large"
+                      placeholder="Chọn biến chứa SĐT người nhận..."
+                      value={basicInfo.actionParams?.receiverPhoneField || undefined}
+                      onChange={(val) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, receiverPhoneField: val } })}
+                    >
+                      {inputFields.map(f => (
+                        <Option key={f.variableName} value={f.variableName}>
+                          {f.variableName} {f.label ? `(${f.label})` : ''}
+                        </Option>
+                      ))}
+                    </Select>
+                    {!basicInfo.actionParams?.receiverPhoneField && inputFields.length > 0 && (
+                      <Text type="warning" style={{ fontSize: 12 }}>
+                        ⚠️ Chưa chọn — engine sẽ mặc định tìm biến tên "RECEIVERPHONE"
+                      </Text>
+                    )}
+                  </Col>
+                </Row>
+              </Card>
+            )}
+
+            {/* billerTrans: Officer ánh xạ biến Biller ID và Customer Code */}
             {basicInfo.action === 'billerTrans' && (
               <Card type="inner" title="Ánh xạ Biến Hóa đơn (Dành riêng cho Biller)" style={{ borderColor: '#0ea5e9' }}>
                 <Row gutter={24}>
@@ -377,11 +512,13 @@ export default function ServiceBuilder() {
                 <div style={{ flex: 1 }}>
                   <Text strong>Trừ từ Ví (Nợ):</Text><br/>
                   <Select value={step.from} onChange={val => updateGlStep(step.id, 'from', val)} style={{ width: '100%', marginTop: 8 }}>
-                    <Option value="SENDER">Ví Khách Hàng Gửi</Option>
+                    <Option value="SENDER">
+                      {basicInfo.action === 'cashIn' ? 'Ví Ngân Hàng' : 'Ví Khách Hàng Gửi'}
+                    </Option>
                     <Option value="RECEIVER">Ví Khách Hàng / Biller Nhận</Option>
-                    <Option value="SYSTEM_FEE">Ví Phí Hệ Thống (Thu)</Option>
-                    <Option value="SYSTEM_PROMO">Ví Khuyến Mãi Hệ Thống</Option>
-                    <Option value="BANK">Ví Ngân Hàng (Cash-in)</Option>
+                    {systemPockets.map(p => (
+                      <Option key={p.id} value={p.id}>Ví Hệ Thống: {p.name || p.id?.slice(-6)}</Option>
+                    ))}
                   </Select>
                 </div>
 
@@ -393,11 +530,13 @@ export default function ServiceBuilder() {
                 <div style={{ flex: 1 }}>
                   <Text strong>Cộng vào Ví (Có):</Text><br/>
                   <Select value={step.to} onChange={val => updateGlStep(step.id, 'to', val)} style={{ width: '100%', marginTop: 8 }}>
-                    <Option value="SENDER">Ví Khách Hàng Gửi</Option>
+                    <Option value="SENDER">
+                      {basicInfo.action === 'cashIn' ? 'Ví Ngân Hàng' : 'Ví Khách Hàng Gửi'}
+                    </Option>
                     <Option value="RECEIVER">Ví Khách Hàng / Biller Nhận</Option>
-                    <Option value="SYSTEM_FEE">Ví Phí Hệ Thống (Thu)</Option>
-                    <Option value="SYSTEM_PROMO">Ví Khuyến Mãi Hệ Thống</Option>
-                    <Option value="BANK">Ví Ngân Hàng (Cash-in)</Option>
+                    {systemPockets.map(p => (
+                      <Option key={p.id} value={p.id}>Ví Hệ Thống: {p.name || p.id?.slice(-6)}</Option>
+                    ))}
                   </Select>
                 </div>
               </div>

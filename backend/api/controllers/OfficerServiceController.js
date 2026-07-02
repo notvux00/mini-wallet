@@ -20,11 +20,28 @@ const SVC_ERR = {
   SERVICE_ALREADY_INACTIVE: 5041, // Dịch vụ đã inactive rồi
 };
 
+// Tên biến hệ thống — Officer KHÔNG được đặt trùng
+const SYSTEM_FIELD_NAMES = ['SERVICEID', 'CURRENCY', 'SENDERID', 'RECEIVERID',
+  'DEBITFEE', 'TOTALAMOUNT', 'TRANSREFID', 'USERID'];
+
 // ─── Private Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Kiểm tra Officer không đặt tên biến trùng với biến hệ thống.
+ * Trả về tên biến bị trùng nếu có, null nếu hợp lệ.
+ */
+function _findReservedNameConflict(fields) {
+  const conflict = fields.find(f => SYSTEM_FIELD_NAMES.includes(f.variableName.toUpperCase()));
+  return conflict ? conflict.variableName : null;
+}
 
 /**
  * Xây dựng mảng fieldBuilder từ danh sách field của Officer.
  * Tự động bổ sung các biến hệ thống (CURRENCY, SENDERID, RECEIVERID).
+ *
+ * Với P2P: tên biến SĐT người nhận lấy từ actionParams.receiverPhoneField
+ * (Officer khai báo ở Bước 1 Wizard), thay vì hardcode 'RECEIVERPHONE'.
+ * Với billerTrans: tương tự, dùng actionParams.billerIdField.
  */
 function _buildFieldBuilder(fields, serviceInfo) {
   const fieldBuilder = fields.map((f, i) => ({
@@ -62,23 +79,66 @@ function _buildFieldBuilder(fields, serviceInfo) {
     errorMessage: 'Không tìm thấy ví của người gửi.',
   });
 
-  // Biến hệ thống: ID Ví người nhận (P2P lấy từ SĐT, billerTrans lấy từ config Bill)
-  if (!serviceInfo.action || serviceInfo.action === 'none') {
+  // Biến hệ thống: ID Ví người nhận
+  // Dùng tên biến do Officer khai báo trong actionParams thay vì hardcode,
+  // tránh trường hợp Officer đặt tên khác (VD: PHONE thay vì RECEIVERPHONE).
+  if (serviceInfo.action === 'cashIn') {
+    // Cash-in: SENDERID là ví Bank Officer chọn LÚC GIAO DỊCH (không fix ở config).
+    // Officer định nghĩa một field (VD: BANKID) ở Bước 2 Wizard,
+    // rồi ánh xạ field đó là "bankPocketField" ở Bước 3.
+    // Lúc giao dịch, Officer chọn ví Bank → giá trị được mapping vào SENDERID.
+    const bankPocketField = serviceInfo.actionParams && serviceInfo.actionParams.bankPocketField
+      ? serviceInfo.actionParams.bankPocketField
+      : 'BANKID'; // fallback mặc định
+
+    const senderIdx = fieldBuilder.findIndex(f => f.name === 'SENDERID');
+    if (senderIdx !== -1) {
+      fieldBuilder[senderIdx] = {
+        ...fieldBuilder[senderIdx],
+        rule: 'mapping',
+        source: 'parameters',
+        variable: bankPocketField, // lấy từ input của Officer lúc giao dịch
+        errorCode: SVC_ERR.SENDER_NOT_FOUND,
+        errorMessage: 'Ví Bank nguồn không hợp lệ.',
+      };
+    }
+
+    // RECEIVERID: ví của Customer được nạp tiền, tra theo SĐT Officer nhập
+    const phoneVar = serviceInfo.actionParams && serviceInfo.actionParams.receiverPhoneField
+      ? serviceInfo.actionParams.receiverPhoneField
+      : 'RECEIVERPHONE';
     fieldBuilder.push({
       order: orderIndex++,
       name: 'RECEIVERID',
       rule: 'query',
       source: 'system',
-      variable: 'queryPocketByPhone(RECEIVERPHONE).id',
+      variable: `queryPocketByPhone(${phoneVar}).id`,
+      datatype: 'string',
+      errorCode: SVC_ERR.RECEIVER_NOT_FOUND,
+      errorMessage: 'Không tìm thấy ví của khách hàng được nạp tiền.',
+    });
+
+  } else if (!serviceInfo.action || serviceInfo.action === 'none') {
+    // P2P: tra ví theo SĐT. Officer phải khai báo actionParams.receiverPhoneField
+    // là tên biến họ dùng cho SĐT người nhận (VD: 'RECEIVERPHONE', 'PHONE', ...).
+    const phoneVar = serviceInfo.actionParams && serviceInfo.actionParams.receiverPhoneField
+      ? serviceInfo.actionParams.receiverPhoneField
+      : 'RECEIVERPHONE'; // fallback mặc định nếu không khai báo
+    fieldBuilder.push({
+      order: orderIndex++,
+      name: 'RECEIVERID',
+      rule: 'query',
+      source: 'system',
+      variable: `queryPocketByPhone(${phoneVar}).id`,
       datatype: 'string',
       errorCode: SVC_ERR.RECEIVER_NOT_FOUND,
       errorMessage: 'Không tìm thấy ví của người nhận.',
     });
   } else {
-    const billerVar =
-      serviceInfo.actionParams && serviceInfo.actionParams.billerIdField
-        ? serviceInfo.actionParams.billerIdField
-        : 'BILLERID';
+    // billerTrans: tra ví Biller theo billerIdField
+    const billerVar = serviceInfo.actionParams && serviceInfo.actionParams.billerIdField
+      ? serviceInfo.actionParams.billerIdField
+      : 'BILLERID'; // fallback mặc định
     fieldBuilder.push({
       order: orderIndex++,
       name: 'RECEIVERID',
@@ -269,6 +329,14 @@ module.exports = {
     try {
       const { serviceInfo, fields, rules, accountingSteps } = req.body;
 
+      // Kiểm tra tên biến Officer không trùng với biến hệ thống
+      const conflict = _findReservedNameConflict(fields);
+      if (conflict) {
+        return res.error('BAD_REQUEST',
+          `Tên biến "${conflict}" đã được hệ thống sử dụng. Vui lòng chọn tên khác.`
+        );
+      }
+
       const fieldBuilder = _buildFieldBuilder(fields, serviceInfo);
       const glSteps = _buildGlSteps(accountingSteps);
 
@@ -371,6 +439,14 @@ module.exports = {
     try {
       const { id, serviceInfo, fields, rules, accountingSteps } = req.body;
       if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');
+
+      // Kiểm tra tên biến Officer không trùng với biến hệ thống
+      const conflict = _findReservedNameConflict(fields);
+      if (conflict) {
+        return res.error('BAD_REQUEST',
+          `Tên biến "${conflict}" đã được hệ thống sử dụng. Vui lòng chọn tên khác.`
+        );
+      }
 
       // ── Maintenance Mode Guard ──────────────────────────────────────────────
       // Officer phải tắt dịch vụ trước khi được phép sửa cấu hình.

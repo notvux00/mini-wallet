@@ -36,7 +36,7 @@ export default function CustomerDashboard() {
     const fetchDashboard = async () => {
       try {
         const response = await axios.post('/api/customer/dashboard');
-        if (response.data.err === 0) {
+        if (response.data.err === 0 || response.data.err === 200) {
           setDashboardData(response.data.data);
         }
       } catch (error) {

@@ -32,7 +32,7 @@ module.exports = {
             // 4. Thống kê thu/chi từ bảng Transaction
             // - Tiền đi: Khách là người gửi, tính cả tiền chuyển + phí (total Amount)
             const expenseTransactions = await Transaction.find({
-                sender: customerPhone,
+                sender: pocket.id,
                 status: 'done'
             });
             let totalExpense = 0;
@@ -42,7 +42,7 @@ module.exports = {
 
             // - Tiền đến: Khách là người nhận, chỉ tính tiền nhận (total Amount)
             const incomeTransactions = await Transaction.find({
-                receiver: customerPhone,
+                receiver: pocket.id,
                 status: 'done'
             });
             let totalIncome = 0;
@@ -54,8 +54,8 @@ module.exports = {
             const recentTransactions = await Transaction.find({
                 where: {
                     or: [
-                        { sender: customerPhone },
-                        { receiver: customerPhone }
+                        { sender: pocket.id },
+                        { receiver: pocket.id }
                     ],
                     status: 'done'
                 },
@@ -63,9 +63,28 @@ module.exports = {
                 limit: 5
             });
 
-            const formattedTransactions = recentTransactions.map(tx => {
+            const formattedTransactions = await Promise.all(recentTransactions.map(async tx => {
                 // Kiểm tra xem khách hàng có phải là receiver hay không
-                const isIncome = (tx.receiver === customerPhone);
+                const isIncome = (tx.receiver === pocket.id);
+                const otherPocketId = isIncome ? tx.sender : tx.receiver;
+
+                // Lấy thông tin người đối diện (từ ID ví sang Tên hiển thị)
+                let displayName = 'Unknown';
+                if (otherPocketId) {
+                    const otherPocket = await Pocket.findOne({ id: otherPocketId });
+                    if (otherPocket) {
+                        if (otherPocket.client === 'customer' && otherPocket.user) {
+                            const otherCustomer = await Customer.findOne({ id: otherPocket.user });
+                            displayName = otherCustomer ? (otherCustomer.name || otherCustomer.phone) : 'Customer';
+                        } else if (otherPocket.client === 'bank') {
+                            displayName = 'Bank';
+                        } else if (otherPocket.client === 'system') {
+                            displayName = 'System';
+                        } else if (otherPocket.client === 'biller') {
+                            displayName = 'Biller';
+                        }
+                    }
+                }
                 
                 return {
                     id: tx.id,
@@ -78,11 +97,11 @@ module.exports = {
                     displayAmount: isIncome ? tx.amount : tx.totalAmount,
 
                     // Trả luôn cả tiêu đề gợi ý để Frontend đỡ phải if-else
-                    displayTitle: isIncome ? `Received from ${tx.sender}` : `Transfer to ${tx.receiver}`,
+                    displayTitle: isIncome ? `Received from ${displayName}` : `Transfer to ${displayName}`,
 
                     serviceId: tx.serviceId // Ví dụ: 'P2P TRANSFER'
                 }
-            })
+            }));
 
         // 6. Trả kết quả
         return res.ok({

@@ -87,12 +87,27 @@ module.exports = {
       };
 
       const total = await Transaction.count(whereClause);
-      const items = await Transaction.find({
+      const rawItems = await Transaction.find({
         where: whereClause,
         sort: 'createdAt DESC',
         skip: skip,
         limit: limit
       });
+
+      // Lấy tên service cho từng giao dịch
+      const items = await Promise.all(rawItems.map(async tx => {
+        let serviceName = 'Unknown Service';
+        if (tx.serviceId) {
+          const service = await Service.findOne({ id: tx.serviceId });
+          if (service) {
+            serviceName = service.name;
+          }
+        }
+        return {
+          ...tx,
+          serviceName
+        };
+      }));
 
       return res.ok({ items, total, page, limit });
     } catch (error) {

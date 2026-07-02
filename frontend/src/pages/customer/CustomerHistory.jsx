@@ -3,7 +3,7 @@ import { Card, Typography, Table, Tag, message } from 'antd';
 import axios from '../../utils/axios';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export default function CustomerHistory() {
   const [history, setHistory] = useState([]);
@@ -17,7 +17,7 @@ export default function CustomerHistory() {
         page: page,
         limit: pagination.pageSize
       });
-      setHistory(response.data.data || []);
+      setHistory(response.data.data?.items || []);
       // Giả sử API trả về total count trong tương lai, hiện tại cứ để tạm
     } catch (error) {
       console.error('Không tải được lịch sử', error);
@@ -39,42 +39,40 @@ export default function CustomerHistory() {
   const columns = [
     {
       title: 'Time',
-      dataIndex: 'date',
-      key: 'date',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (val) => val ? new Date(val).toLocaleString('vi-VN') : '---'
     },
     {
-      title: 'Description',
-      dataIndex: 'desc',
-      key: 'desc',
+      title: 'Transaction ID',
+      dataIndex: 'transRefId',
+      key: 'transRefId',
+      render: (text) => <Text copyable>{text}</Text>
     },
     {
       title: 'Amount',
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
-      render: (amount) => {
-        const isNegative = amount < 0;
-        return (
-          <strong style={{ color: isNegative ? '#ef4444' : '#22c55e' }}>
-            {isNegative ? <ArrowDownOutlined style={{fontSize: 12, marginRight: 4}} /> : <ArrowUpOutlined style={{fontSize: 12, marginRight: 4}} />}
-            {Math.abs(amount).toLocaleString('vi-VN')} đ
-          </strong>
-        );
-      }
+      render: (amount) => (
+        <strong style={{ color: '#0ea5e9' }}>
+          {amount?.toLocaleString('vi-VN')} đ
+        </strong>
+      )
     },
     {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
+      title: 'Service',
+      dataIndex: 'serviceName',
+      key: 'serviceName',
       align: 'center',
-      render: (type) => <Tag color="blue">{type}</Tag>
+      render: (serviceName) => <Tag color="blue">{serviceName || 'UNKNOWN'}</Tag>
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       align: 'center',
-      render: (status) => <Tag color="success">{status.toUpperCase()}</Tag>
+      render: (status) => <Tag color="success">{status?.toUpperCase()}</Tag>
     }
   ];
 

@@ -229,9 +229,9 @@ function _buildTransFields(fields, serviceId, serviceInfo) {
 
 /**
  * Xây dựng mảng TransValidation records từ object rules của Officer.
- * minAmountValue: giá trị tối thiểu (mặc định 10000 nếu không truyền).
+ * amountField: tên biến số tiền do Officer đặt (VD: 'AMOUNT', 'SOTIEN'...)
  */
-function _buildValidations(rules, serviceId) {
+function _buildValidations(rules, serviceId, amountField) {
   const validations = [];
   let order = 1;
 
@@ -252,7 +252,7 @@ function _buildValidations(rules, serviceId) {
     validations.push({
       service: serviceId,
       validateFunc: 'validateSenderAccountSufficiency',
-      validateFields: 'SENDERID:AMOUNT:DEBITFEE',
+      validateFields: `SENDERID:${amountField}:DEBITFEE`, // dùng tên biến động
       order: order++,
       errorCode: SVC_ERR.INSUFFICIENT_BALANCE,
       errorMessage: 'Số dư không đủ để thực hiện giao dịch (bao gồm phí).',
@@ -266,7 +266,7 @@ function _buildValidations(rules, serviceId) {
     validations.push({
       service: serviceId,
       validateFunc: 'validateMinAmount',
-      validateFields: `AMOUNT:${threshold}`,
+      validateFields: `${amountField}:${threshold}`, // dùng tên biến động
       order: order++,
       errorCode: SVC_ERR.MIN_AMOUNT,
       errorMessage: `Số tiền giao dịch tối thiểu là ${threshold.toLocaleString('vi-VN')}đ.`,
@@ -339,6 +339,8 @@ module.exports = {
 
       const fieldBuilder = _buildFieldBuilder(fields, serviceInfo);
       const glSteps = _buildGlSteps(accountingSteps);
+      // Tên biến số tiền lấy từ bút toán đầu tiên (Officer tự đặt: AMOUNT, SOTIEN...)
+      const amountField = (glSteps.length > 0 && glSteps[0].amount) ? glSteps[0].amount : 'AMOUNT';
 
       // ACID Transaction: lưu vào 4 bảng cùng lúc, all-or-nothing
       const client = sails.getDatastore().manager.client;
@@ -370,15 +372,16 @@ module.exports = {
           }
 
           // 3. Tạo các TransValidation records
-          const validations = _buildValidations(rules, serviceId);
+          const validations = _buildValidations(rules, serviceId, amountField);
           if (validations.length > 0) {
             await db.collection('transvalidation').insertMany(validations, { session });
           }
 
-          // 4. Tạo TransDefinition (glSteps)
+          // 4. Tạo TransDefinition (glSteps + amountField)
           await db.collection('transdefinition').insertOne({
             service: serviceId,
             glSteps: glSteps,
+            amountField: amountField, // lưu tên biến số tiền để Engine dùng nhất quán
             status: 'active',
             createdAt: Date.now(),
             updatedAt: Date.now(),

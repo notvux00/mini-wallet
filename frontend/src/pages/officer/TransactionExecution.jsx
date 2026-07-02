@@ -8,6 +8,7 @@ const { Option } = Select;
 
 export default function TransactionExecution() {
   const [form] = Form.useForm();
+  const [pinForm] = Form.useForm();
   const [services, setServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
@@ -17,6 +18,7 @@ export default function TransactionExecution() {
   
   const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState(null);
+  const [pendingAuth, setPendingAuth] = useState(null); // { transRefId, preview } khi cần PIN
 
   // Fetch all active services
   useEffect(() => {
@@ -75,34 +77,50 @@ export default function TransactionExecution() {
   const onFinish = async (values) => {
     setExecuting(true);
     setResult(null);
+    setPendingAuth(null);
     try {
       const token = localStorage.getItem('officer_token');
       const res = await axios.post(
-        'http://localhost:1337/api/officer/cashin',
-        {
-          serviceId: selectedServiceId,
-          transData: values
-        },
+        'http://localhost:1337/api/officer/transactions/execute',
+        { serviceId: selectedServiceId, transData: values },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      if (res.data.status === 'success') {
+      const data = res.data.data;
+      if (data.requireAuth) {
+        // Service yêu cầu PIN — hiện form nhập mã
+        setPendingAuth({ transRefId: data.transRefId, preview: data.preview, authMethod: data.authMethod });
+        message.info(`Dịch vụ yêu cầu xác thực ${data.authMethod}. Vui lòng nhập mã.`);
+        form.resetFields();
+      } else {
         message.success('Giao dịch thành công!');
-        setResult({
-          type: 'success',
-          preview: res.data.data.preview,
-          transactionId: res.data.data.transactionId,
-          message: res.data.data.message
-        });
+        setResult({ type: 'success', data });
         form.resetFields();
       }
     } catch (err) {
-      const errMsg = err.response?.data?.message || 'Có lỗi xảy ra khi thực hiện giao dịch.';
+      const errMsg = err.response?.data?.message || 'Có lỗi xảy ra.';
       message.error(errMsg);
-      setResult({
-        type: 'error',
-        message: errMsg
-      });
+      setResult({ type: 'error', message: errMsg });
+    }
+    setExecuting(false);
+  };
+
+  const onVerifyPin = async (values) => {
+    setExecuting(true);
+    try {
+      const token = localStorage.getItem('officer_token');
+      const res = await axios.post(
+        'http://localhost:1337/api/officer/transactions/verify',
+        { transRefId: pendingAuth.transRefId, authCode: values.authCode },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      message.success('Giao dịch thành công!');
+      setResult({ type: 'success', data: res.data.data });
+      setPendingAuth(null);
+      pinForm.resetFields();
+    } catch (err) {
+      const errMsg = err.response?.data?.message || 'Mã xác thực không đúng.';
+      message.error(errMsg);
     }
     setExecuting(false);
   };
@@ -143,13 +161,13 @@ export default function TransactionExecution() {
     const bankPocketField = actionParams.bankPocketField || 'BANKID';
 
     return officerFields.map(field => {
-      // Xác định icon
+      // Xác định icon dựa vào fieldFormat hoặc tên biến
       let prefix = null;
-      if (field.fieldName.includes('PHONE')) prefix = <PhoneOutlined />;
-      else if (field.fieldName.includes('AMOUNT')) prefix = <DollarOutlined />;
+      if (field.fieldFormat === 'number') prefix = <DollarOutlined />;         // Ưu tiên format
+      else if (field.fieldName.includes('PHONE')) prefix = <PhoneOutlined />;
       else if (field.fieldName.includes('BANK')) prefix = <BankOutlined />;
 
-      // Xác định Component Input
+      // Xác định Component Input — dùng fieldFormat làm chuẩn, không phụ thuộc tên biến
       let InputComponent = <Input size="large" prefix={prefix} placeholder={`Nhập ${field.fieldName}`} />;
       
       // BẮT RIÊNG TRƯỜNG BANKID ĐỂ CHUYỂN THÀNH DROPDOWN CHỌN VÍ NGÂN HÀNG
@@ -162,8 +180,8 @@ export default function TransactionExecution() {
           </Select>
         );
       }
-      // Nếu là trường AMOUNT hoặc dạng number
-      else if (field.fieldFormat === 'number' || field.fieldName.includes('AMOUNT')) {
+      // Nếu là trường kiểu number (dùng fieldFormat, không dùng tên biến)
+      else if (field.fieldFormat === 'number') {
         InputComponent = (
           <InputNumber 
             size="large" 
@@ -239,13 +257,47 @@ export default function TransactionExecution() {
           </Form>
         )}
 
+        {/* Form nhập PIN khi service yêu cầu xác thực */}
+        {pendingAuth && (
+          <>
+            <Divider orientation="left">Xác thực giao dịch</Divider>
+            <Alert
+              type="warning"
+              showIcon
+              message={`Dịch vụ yêu cầu ${pendingAuth.authMethod}`}
+              description={
+                <div>
+                  <p>Mã giao dịch chờ: <strong>{pendingAuth.transRefId}</strong></p>
+                  {pendingAuth.preview && (
+                    <p>Tổng tiền: <strong>{pendingAuth.preview.totalAmount?.toLocaleString('vi-VN')} {pendingAuth.preview.currency}</strong></p>
+                  )}
+                </div>
+              }
+              style={{ marginBottom: 16 }}
+            />
+            <Form form={pinForm} layout="inline" onFinish={onVerifyPin}>
+              <Form.Item name="authCode" rules={[{ required: true, message: 'Nhập mã xác thực!' }]}>
+                <Input.Password size="large" placeholder={`Nhập ${pendingAuth.authMethod}`} style={{ width: 200 }} />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" size="large" loading={executing}>
+                  Xác nhận
+                </Button>
+              </Form.Item>
+              <Form.Item>
+                <Button size="large" onClick={() => setPendingAuth(null)}>Hủy</Button>
+              </Form.Item>
+            </Form>
+          </>
+        )}
+
         {result && result.type === 'success' && (
           <Alert
             message="Giao dịch thành công"
             description={
               <div>
-                <p><strong>Mã giao dịch:</strong> {result.transactionId}</p>
-                <p><strong>Tổng tiền:</strong> {result.preview.totalAmount?.toLocaleString('vi-VN')} {result.preview.currency}</p>
+                <p><strong>Mã giao dịch:</strong> {result.data?.transactionId || result.data?.transRefId}</p>
+                <p><strong>Trạng thái:</strong> {result.data?.status}</p>
               </div>
             }
             type="success"

@@ -133,8 +133,8 @@ export default function CustomerManagement() {
         [noteField]: values.note
       };
 
-      await axios.post('/api/officer/cashin', {
-        serviceId: cashInService.id || cashInService.serviceInfo?.serviceCode, // dự phòng
+      await axios.post('/api/officer/transactions/execute', {
+        serviceId: cashInService.id || cashInService.serviceInfo?.serviceCode,
         transData
       });
 

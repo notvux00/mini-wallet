@@ -34,6 +34,7 @@ module.exports.routes = {
   'POST /api/customer/dashboard': 'CustomerController.dashboard',
   'POST /api/customer/billers/list': 'CustomerBillerController.list',
   'POST /api/customer/transactions/history': 'CustomerTransactionController.history',
+  'POST /api/customer/services/list': 'CustomerServiceController.list', // Danh sách service active cho Customer
   'POST /api/customer/transaction/request': 'CustomerTransactionController.request',
   'POST /api/customer/transaction/confirm': 'CustomerTransactionController.confirm',
   'POST /api/customer/transaction/verify': 'CustomerTransactionController.verify',
@@ -47,9 +48,10 @@ module.exports.routes = {
   'POST /api/officer/pockets/list': 'OfficerPocketController.list', // Danh sách Pocket
   'POST /api/officer/pockets/toggle-status': 'OfficerPocketController.toggleStatus', // Khóa/Mở khóa Ví
   'POST /api/officer/pockets/create': 'OfficerPocketController.create', // Tạo mới Ví (System/Bank)
-  'POST /api/officer/transactions/list': 'OfficerTransactionController.list', // Danh sách toàn bộ giao dịch
-  'POST /api/officer/trails/list': 'OfficerTrailController.list', // Danh sách toàn bộ dấu vết giao dịch (Transaction Trail)
-  'POST /api/officer/cashin': 'OfficerTransactionController.cashin', // Cash-in API
+  'POST /api/officer/transactions/list': 'OfficerTransactionController.list',   // Danh sách toàn bộ giao dịch
+  'POST /api/officer/trails/list': 'OfficerTrailController.list',               // Danh sách Trail
+  'POST /api/officer/transactions/execute': 'OfficerTransactionController.execute', // Thực hiện giao dịch (mọi loại)
+  'POST /api/officer/transactions/verify': 'OfficerTransactionController.verify',   // Xác thực PIN (nếu cần)
   
   // APIs cho Service Configurator (Luồng Cấu Hình Động)
   'POST /api/officer/services/list': 'OfficerServiceController.list',

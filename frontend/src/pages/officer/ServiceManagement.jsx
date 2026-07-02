@@ -32,9 +32,14 @@ export default function ServiceManagement() {
     fetchServices();
   }, []);
 
-  const handleToggleStatus = (record) => {
-    // TBD: Backend API to toggle status
-    message.info('Tính năng đổi trạng thái chưa được nối API!');
+  const handleToggleStatus = async (record) => {
+    try {
+      await axios.post('/api/officer/services/toggle-status', { id: record.key });
+      message.success(`Đã ${record.status === 'active' ? 'deactivate' : 'activate'} dịch vụ "${record.name}"`);
+      fetchServices();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi khi đổi trạng thái dịch vụ.');
+    }
   };
 
   const handleAddService = () => {

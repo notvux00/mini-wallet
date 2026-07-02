@@ -60,13 +60,19 @@ module.exports = {
             TRANSBODY[fb.name] = transData[fb.variable];
           }
         } else if (fb.rule === 'query') {
+          // variable = 'queryPocketByUserId(USERID).id' — lấy ví của chính user đang đăng nhập
+          const matchUserId = fb.variable.match(/queryPocketByUserId\(.*?\)/);
+          if (matchUserId) {
+            const pocket = await Pocket.findOne({ user: userId });
+            if (pocket) TRANSBODY[fb.name] = pocket.id;
+          }
+
           // variable = 'queryPocketByPhone(RECEIVERPHONE).id'
           const matchPhone = fb.variable.match(/queryPocketByPhone\((.*?)\)/);
           if (matchPhone && matchPhone[1]) {
             const phoneVar = matchPhone[1];
             const phone = transData[phoneVar];
             if (phone) {
-              // Tìm user theo phone, sau đó tìm pocket
               const user = await Customer.findOne({ phone });
               if (user) {
                 const pocket = await Pocket.findOne({ user: user.id });
@@ -197,12 +203,18 @@ module.exports = {
     const TRANSBODY = trail.inputMessage;
 
     // 1. Verify PIN (nếu authMethod === 'PIN')
-    const authMethod = (clientType === 'officer') ? 'NONE' : (service.authMethod || 'PIN');
+    const authMethod = (clientType === 'officer')
+      ? 'NONE'
+      : (service.auth && service.auth.method ? service.auth.method : 'PIN');
+
     if (authMethod === 'PIN') {
+      if (!authCode || authCode === 'NONE') {
+        throw new Error('AUTH_ERR.WRONG_PIN: Mã PIN không chính xác.');
+      }
       const customer = await Customer.findOne({ id: userId });
       if (!customer) throw new Error('AUTH_ERR.USER_NOT_FOUND: Không tìm thấy người dùng.');
-      // Trong thực tế cần dùng bcrypt.compare, ở đây so sánh tạm với pinHash hoặc authCode
-      if (customer.pinHash !== authCode) {
+      const isValid = await SecurityUtil.compareText(authCode, customer.pinHash);
+      if (!isValid) {
         throw new Error('AUTH_ERR.WRONG_PIN: Mã PIN không chính xác.');
       }
     }
@@ -246,7 +258,7 @@ module.exports = {
 
           const debitObjectId = new (require('mongodb').ObjectId)(debitPocketId);
 
-          // MongoDB driver v6+: findOneAndUpdate trả về document trực tiếp (không wrap {value: doc})
+          // MongoDB driver v6+: findOneAndUpdate trả về document trực tiếp
           const updatedDebitPocket = await pocketCollection.findOneAndUpdate(
             { _id: { $in: [debitPocketId, debitObjectId] }, balance: { $gte: amountValue } },
             { $inc: { balance: -amountValue } },
@@ -257,23 +269,43 @@ module.exports = {
             throw new Error('TRX_ERR.INSUFFICIENT_BALANCE: Ví nguồn không đủ số dư để thực hiện giao dịch.');
           }
 
-          const creditObjectId = new (require('mongodb').ObjectId)(creditPocketId);
+          // Tính và cập nhật lại checksum cho Ví Nợ
+          const debitChecksum = SecurityUtil.generatePocketChecksum(updatedDebitPocket.balance, updatedDebitPocket.user);
           await pocketCollection.updateOne(
-            { _id: { $in: [creditPocketId, creditObjectId] } },
-            { $inc: { balance: amountValue } },
+            { _id: updatedDebitPocket._id },
+            { $set: { checksum: debitChecksum } },
             { session }
           );
+
+          const creditObjectId = new (require('mongodb').ObjectId)(creditPocketId);
+          const updatedCreditPocket = await pocketCollection.findOneAndUpdate(
+            { _id: { $in: [creditPocketId, creditObjectId] } },
+            { $inc: { balance: amountValue } },
+            { session, returnDocument: 'after' }
+          );
+
+          // Tính và cập nhật lại checksum cho Ví Có
+          if (updatedCreditPocket) {
+            const creditChecksum = SecurityUtil.generatePocketChecksum(updatedCreditPocket.balance, updatedCreditPocket.user);
+            await pocketCollection.updateOne(
+              { _id: updatedCreditPocket._id },
+              { $set: { checksum: creditChecksum } },
+              { session }
+            );
+          }
         }
 
         // Tạo Transaction Record trong cùng 1 session
+        // Đọc tên biến số tiền từ TransDefinition (do Officer đặt: AMOUNT, SOTIEN,...)
+        const txAmountField = transDef.amountField || (transDef.glSteps && transDef.glSteps[0] ? transDef.glSteps[0].amount : 'AMOUNT');
         const newTrans = {
           transRefId: transRefId,
           serviceId: service.id,
           sender: TRANSBODY.SENDERID || null,
           receiver: TRANSBODY.RECEIVERID || null,
-          amount: Number(TRANSBODY.AMOUNT) || 0,
+          amount: Number(TRANSBODY[txAmountField]) || 0,
           fee: Number(TRANSBODY.FEE) || 0,
-          totalAmount: Number(TRANSBODY.TOTALAMOUNT) || Number(TRANSBODY.AMOUNT) || 0,
+          totalAmount: Number(TRANSBODY.TOTALAMOUNT) || Number(TRANSBODY[txAmountField]) || 0,
           billerRefId: TRANSBODY.BILLERREFID || null,
           status: 'done',
           createdAt: Date.now(),

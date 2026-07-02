@@ -1,7 +1,11 @@
 module.exports = {
 
   attributes: {
-
+    transRefId: {
+      type: 'string',
+      required: true,
+      unique: true,
+    },
     serviceId: {
       type: 'string',
       required: true,
@@ -15,6 +19,15 @@ module.exports = {
       isIn: ['init', 'pending', 'done', 'failed'],
       defaultsTo: 'init',
     },
+    createdBy: {
+      type: 'string',
+    },
+    clientType: {
+      type: 'string',
+    },
+    totalAmount: {
+      type: 'number',
+    },
     inputMessage: {
       type: 'json',
       defaultsTo: {},
@@ -27,7 +40,6 @@ module.exports = {
       type: 'json',
       defaultsTo: [],
     }
-
   },
 
 };

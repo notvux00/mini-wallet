@@ -14,14 +14,14 @@ export default function TransactionHistory() {
 
   const columns = [
     { title: 'Trans Ref ID', dataIndex: 'transRefId', key: 'transRefId', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Service ID', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text}</Tag> },
-    { title: 'Sender Pocket', dataIndex: 'sender', key: 'sender', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Receiver Pocket', dataIndex: 'receiver', key: 'receiver', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Amount', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong>{text.toLocaleString()}</Text> },
-    { title: 'Fee', dataIndex: 'fee', key: 'fee', align: 'right', render: text => <Text type="danger">{text.toLocaleString()}</Text> },
-    { title: 'Total Amount', dataIndex: 'totalAmount', key: 'totalAmount', align: 'right', render: text => <Text type="success" strong>{text.toLocaleString()}</Text> },
+    { title: 'Service ID', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text || 'N/A'}</Tag> },
+    { title: 'Sender Pocket', dataIndex: 'sender', key: 'sender', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
+    { title: 'Receiver Pocket', dataIndex: 'receiver', key: 'receiver', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
+    { title: 'Amount', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong>{(text ?? 0).toLocaleString()}</Text> },
+    { title: 'Fee', dataIndex: 'fee', key: 'fee', align: 'right', render: text => <Text type="danger">{(text ?? 0).toLocaleString()}</Text> },
+    { title: 'Total Amount', dataIndex: 'totalAmount', key: 'totalAmount', align: 'right', render: text => <Text type="success" strong>{(text ?? 0).toLocaleString()}</Text> },
     { title: 'Biller Ref ID', dataIndex: 'billerRefId', key: 'billerRefId', align: 'center', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
-    { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => <Tag color="success" icon={<CheckCircleOutlined />}>{text.toUpperCase()}</Tag> },
+    { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => <Tag color="success" icon={<CheckCircleOutlined />}>{(text || 'done').toUpperCase()}</Tag> },
     { title: 'Created At', dataIndex: 'createdAt', key: 'createdAt', align: 'center' }
   ];
 

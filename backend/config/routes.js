@@ -34,6 +34,9 @@ module.exports.routes = {
   'POST /api/customer/dashboard': 'CustomerController.dashboard',
   'POST /api/customer/billers/list': 'CustomerBillerController.list',
   'POST /api/customer/transactions/history': 'CustomerTransactionController.history',
+  'POST /api/customer/transaction/request': 'CustomerTransactionController.request',
+  'POST /api/customer/transaction/confirm': 'CustomerTransactionController.confirm',
+  'POST /api/customer/transaction/verify': 'CustomerTransactionController.verify',
 
   // 4. Nhóm API CMS cho Officer
   'POST /api/officer/customers/list': 'OfficerCustomerController.list', // Danh sách Customer
@@ -46,6 +49,7 @@ module.exports.routes = {
   'POST /api/officer/pockets/create': 'OfficerPocketController.create', // Tạo mới Ví (System/Bank)
   'POST /api/officer/transactions/list': 'OfficerTransactionController.list', // Danh sách toàn bộ giao dịch
   'POST /api/officer/trails/list': 'OfficerTrailController.list', // Danh sách toàn bộ dấu vết giao dịch (Transaction Trail)
+  'POST /api/officer/cashin': 'OfficerTransactionController.cashin', // Cash-in API
   
   // APIs cho Service Configurator (Luồng Cấu Hình Động)
   'POST /api/officer/services/list': 'OfficerServiceController.list',

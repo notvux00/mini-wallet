@@ -1,45 +1,100 @@
 module.exports = {
-  history: async function(req, res) {
+  /**
+   * BƯỚC 1: Gọi từ Customer App để tạo Giao dịch (Preview)
+   */
+  request: async function (req, res) {
     try {
-      const customerId = req.user.id;
-      const customer = await Customer.findOne({ id: customerId });
-      
-      if (!customer) {
-        return res.error(respCode.NOT_FOUND, 'Không tìm thấy thông tin khách hàng!');
-      }
+      const { serviceId, transData } = req.body;
+      const userId = req.user.id; // Từ JWT
 
-      const customerPhone = customer.phone;
+      const result = await TransactionEngine.engineRequestTransaction({
+        serviceId,
+        transData,
+        userId,
+        clientType: 'customer'
+      });
 
-      // Phân trang (mặc định trang 1, 10 item)
+      return res.ok(result);
+    } catch (error) {
+      sails.log.error(error);
+      return res.badRequest({ message: error.message });
+    }
+  },
+
+  /**
+   * BƯỚC 2: Gọi từ Customer App để xác nhận và nhận yêu cầu Auth
+   */
+  confirm: async function (req, res) {
+    try {
+      const { transRefId } = req.body;
+      const userId = req.user.id;
+
+      const result = await TransactionEngine.engineConfirmTransaction({
+        transRefId,
+        userId,
+        clientType: 'customer'
+      });
+
+      return res.ok(result);
+    } catch (error) {
+      sails.log.error(error);
+      return res.badRequest({ message: error.message });
+    }
+  },
+
+  /**
+   * BƯỚC 3: Gọi từ Customer App để điền mã PIN và thực thi
+   */
+  verify: async function (req, res) {
+    try {
+      const { transRefId, authCode } = req.body;
+      const userId = req.user.id;
+
+      const result = await TransactionEngine.engineVerifyTransaction({
+        transRefId,
+        authCode,
+        userId,
+        clientType: 'customer'
+      });
+
+      return res.ok(result);
+    } catch (error) {
+      sails.log.error(error);
+      return res.badRequest({ message: error.message });
+    }
+  },
+
+  /**
+   * Lấy lịch sử giao dịch của Customer
+   */
+  history: async function (req, res) {
+    try {
+      const userId = req.user.id;
       const page = req.body.page || 1;
       const limit = req.body.limit || 10;
       const skip = (page - 1) * limit;
 
-      const transactions = await Transaction.find({
-        where: {
-          or: [
-            { sender: customerPhone },
-            { receiver: customerPhone }
-          ]
-        },
+      const pocket = await Pocket.findOne({ user: userId });
+      if (!pocket) {
+        return res.ok({ items: [], total: 0, page, limit }, 'Chưa có giao dịch');
+      }
+
+      const whereClause = {
+        or: [
+          { sender: pocket.id },
+          { receiver: pocket.id }
+        ]
+      };
+
+      const total = await Transaction.count(whereClause);
+      const items = await Transaction.find({
+        where: whereClause,
         sort: 'createdAt DESC',
         skip: skip,
         limit: limit
       });
 
-      const formattedTransactions = transactions.map(tx => {
-        const isIncome = (tx.receiver === customerPhone);
-        return {
-          id: tx.transRefId, // Trả về mã ref để hiển thị
-          type: tx.serviceId, // P2P_TRANSFER, BILL_PAYMENT
-          amount: isIncome ? tx.amount : -tx.totalAmount, // Thu dương, Chi âm
-          date: new Date(tx.createdAt).toLocaleString('vi-VN'),
-          status: tx.status,
-          desc: isIncome ? `Received from ${tx.sender}` : `Transfer to ${tx.receiver}`
-        };
-      });
-
-      return res.ok(formattedTransactions, 'Lấy lịch sử giao dịch thành công!');
+      return res.ok({ items, total, page, limit });
     } catch (error) {
       sails.log.error('Lỗi CustomerTransactionController.history:', error);
       return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../utils/axios';
-import { Card, Typography, Table, Button, Space, Modal, Form, InputNumber, Input, message, Row, Col } from 'antd';
-import { DollarOutlined, PlusOutlined } from '@ant-design/icons';
+import { Card, Typography, Table, Button, Space, Modal, Form, InputNumber, Input, message, Row, Col, Select } from 'antd';
+const { Option } = Select;
+import { DollarOutlined, PlusOutlined, BankOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -62,6 +63,38 @@ export default function CustomerManagement() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [form] = Form.useForm();
+  
+  const [bankPockets, setBankPockets] = useState([]);
+  const [cashInService, setCashInService] = useState(null);
+  const [executing, setExecuting] = useState(false);
+
+  useEffect(() => {
+    // Fetch bank pockets and cash-in service config
+    const fetchConfigs = async () => {
+      try {
+        const pocketRes = await axios.post('/api/officer/pockets/list', { client: 'bank' });
+        if (pocketRes.data?.data?.items) {
+          setBankPockets(pocketRes.data.data.items.filter(p => p.status === 'active'));
+        }
+
+        const serviceRes = await axios.post('/api/officer/services/list', {});
+        if (serviceRes.data?.data?.items) {
+          const cInService = serviceRes.data.data.items.find(s => s.action === 'cashIn' && s.status === 'active');
+          if (cInService) {
+            const detailRes = await axios.post('/api/officer/services/detail', { id: cInService.id });
+            if (detailRes.data?.data) {
+              setCashInService({ ...cInService, ...detailRes.data.data });
+            } else {
+              setCashInService(cInService);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải cấu hình Nạp tiền:', err);
+      }
+    };
+    fetchConfigs();
+  }, []);
 
   const handleCashInClick = (record) => {
     setSelectedCustomer(record);
@@ -69,19 +102,51 @@ export default function CustomerManagement() {
     form.resetFields();
   };
 
-  const handleCashInSubmit = (values) => {
-    const { amount } = values;
-    // Mock update balance
-    const updatedData = data.map(item => {
-      if (item.key === selectedCustomer.key) {
-        return { ...item, balance: item.balance + amount };
+  const handleCashInSubmit = async (values) => {
+    if (!cashInService) {
+      return message.error('Không tìm thấy dịch vụ Nạp tiền (cashIn) đang active trong hệ thống.');
+    }
+
+    setExecuting(true);
+    try {
+      const actionParams = cashInService.serviceInfo?.actionParams || {};
+      const bankFieldName = actionParams.bankPocketField || 'BANKID';
+      const phoneFieldName = actionParams.receiverPhoneField || 'RECEIVERPHONE';
+
+      // Nội suy trường số tiền từ cấu hình Kế toán
+      let amountFieldName = 'AMOUNT';
+      const acctSteps = cashInService.accountingSteps || [];
+      if (acctSteps.length > 0) {
+        amountFieldName = acctSteps[0].amount;
+      } else if (cashInService.fields) {
+        const amountFieldConf = cashInService.fields.find(f => f.fieldFormat === 'number');
+        if (amountFieldConf) amountFieldName = amountFieldConf.fieldName;
       }
-      return item;
-    });
-    
-    setData(updatedData);
-    message.success(`Nạp thành công ${amount.toLocaleString()} VND cho thuê bao ${selectedCustomer.phone}`);
-    setIsModalVisible(false);
+
+      // Nội suy trường ghi chú (nếu có cấu hình thì lấy, không thì mặc định NOTE)
+      const noteField = cashInService.fields?.find(f => f.fieldName.toUpperCase().includes('NOTE') || f.fieldName.toUpperCase().includes('GHI'))?.fieldName || 'NOTE';
+
+      const transData = {
+        [phoneFieldName]: selectedCustomer.phone,
+        [amountFieldName]: values.amount,
+        [bankFieldName]: values.bankPocketId,
+        [noteField]: values.note
+      };
+
+      await axios.post('/api/officer/cashin', {
+        serviceId: cashInService.id || cashInService.serviceInfo?.serviceCode, // dự phòng
+        transData
+      });
+
+      // Nếu không văng catch tức là API thành công
+      message.success(`Nạp thành công ${values.amount.toLocaleString()} VND cho ${selectedCustomer.phone}`);
+      setIsModalVisible(false);
+      fetchCustomers(pagination.current); // Refresh data
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi nạp tiền.');
+    } finally {
+      setExecuting(false);
+    }
   };
 
   const columns = [
@@ -148,6 +213,21 @@ export default function CustomerManagement() {
                 {selectedCustomer.balance.toLocaleString()} <span style={{ fontSize: 16, fontWeight: 500 }}>VND</span>
               </Title>
             </div>
+
+            <Form.Item 
+              label={<Text strong>Trích từ Ví Ngân Hàng (Nguồn)</Text>} 
+              name="bankPocketId" 
+              rules={[{ required: true, message: 'Vui lòng chọn ví ngân hàng!' }]}
+            >
+              <Select size="large" placeholder="-- Chọn ví Ngân hàng --">
+                {bankPockets.map(p => (
+                  <Option key={p.id} value={p.id}>
+                    <BankOutlined style={{ marginRight: 8, color: '#0ea5e9' }} />
+                    {p.id.slice(-6)} - {p.currency} (Dư: {p.balance.toLocaleString('vi-VN')})
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
 
             <Form.Item 
               label={<Text strong>Top-up Amount (VND)</Text>} 

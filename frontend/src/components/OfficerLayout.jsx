@@ -11,7 +11,8 @@ import {
   LogoutOutlined,
   UserSwitchOutlined,
   WalletFilled,
-  DashboardOutlined
+  DashboardOutlined,
+  DollarOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';

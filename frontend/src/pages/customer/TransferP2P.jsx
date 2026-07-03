@@ -12,7 +12,7 @@ export default function TransferP2P() {
   const [pinForm] = Form.useForm();
   const [previewData, setPreviewData] = useState(null);   // { transRefId, preview }
   const [transRefId, setTransRefId] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // set true initially
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [balance, setBalance] = useState(0);
@@ -42,8 +42,13 @@ export default function TransferP2P() {
       }
     };
 
-    fetchServices();
-    fetchBalance();
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([fetchServices(), fetchBalance()]);
+      setLoading(false);
+    };
+
+    init();
   }, []);
 
   // BƯỚC 1: Gọi /api/customer/transaction/request → nhận preview
@@ -158,10 +163,18 @@ export default function TransferP2P() {
         <Card className="glass-card" style={{ borderRadius: 16 }}>
           <Spin spinning={loading}>
             
-            <div style={{ marginBottom: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ color: '#64748b' }}>Số dư khả dụng:</Text>
-              <Text strong style={{ fontSize: 18, color: '#0ea5e9' }}>{balance.toLocaleString()} VND</Text>
-            </div>
+            {!loading && services.length === 0 ? (
+              <Result
+                status="warning"
+                title="Dịch vụ tạm ngưng"
+                subTitle="Hiện tại dịch vụ chuyển tiền P2P đang được bảo trì. Vui lòng quay lại sau!"
+              />
+            ) : (
+              <>
+                <div style={{ marginBottom: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ color: '#64748b' }}>Số dư khả dụng:</Text>
+                  <Text strong style={{ fontSize: 18, color: '#0ea5e9' }}>{balance.toLocaleString()} VND</Text>
+                </div>
 
             {services.length > 1 && (
               <Form.Item label="Dịch vụ" style={{ marginBottom: 16 }}>
@@ -219,6 +232,8 @@ export default function TransferP2P() {
                 Tiếp tục
               </Button>
             </Form>
+            </>
+            )}
           </Spin>
         </Card>
       )}

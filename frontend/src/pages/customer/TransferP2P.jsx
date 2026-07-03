@@ -15,9 +15,10 @@ export default function TransferP2P() {
   const [loading, setLoading] = useState(false);
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const [balance, setBalance] = useState(0);
   const navigate = useNavigate();
 
-  // Fetch danh sách service P2P (action = 'none') dành cho Customer
+  // Fetch danh sách service P2P và số dư
   useEffect(() => {
     const fetchServices = async () => {
       try {
@@ -26,10 +27,23 @@ export default function TransferP2P() {
         setServices(list);
         if (list.length === 1) setSelectedServiceId(list[0].id);
       } catch {
-        // ignore — nếu không load được thì user sẽ thấy warning khi submit
+        // ignore
       }
     };
+    
+    const fetchBalance = async () => {
+      try {
+        const res = await axios.post('/api/customer/dashboard');
+        if (res.data?.data) {
+          setBalance(res.data.data.balance || 0);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     fetchServices();
+    fetchBalance();
   }, []);
 
   // BƯỚC 1: Gọi /api/customer/transaction/request → nhận preview
@@ -61,7 +75,7 @@ export default function TransferP2P() {
       });
       setCurrentStep(1);
     } catch (err) {
-      message.error(err.response?.data?.message || 'Lỗi khi tạo giao dịch.');
+      message.error(err.message || 'Lỗi khi tạo giao dịch.');
     } finally {
       setLoading(false);
     }
@@ -80,7 +94,7 @@ export default function TransferP2P() {
         pinForm.resetFields();
       }
     } catch (err) {
-      message.error(err.response?.data?.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.');
+      message.error(err.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.');
     } finally {
       setLoading(false);
     }
@@ -92,6 +106,19 @@ export default function TransferP2P() {
     setCurrentStep(0);
     setPreviewData(null);
     setTransRefId(null);
+  };
+
+  const getFeeDescription = () => {
+    const selectedService = services.find(s => s.id === selectedServiceId);
+    if (!selectedService || !selectedService.fee) return 'Miễn phí giao dịch';
+    if (selectedService.fee.type === 'fixed') {
+      return `Phí giao dịch: ${selectedService.fee.value.toLocaleString()} VND`;
+    }
+    if (selectedService.fee.type === 'percent') {
+      const maxStr = selectedService.fee.max ? ` (Tối đa ${selectedService.fee.max.toLocaleString()} VND)` : '';
+      return `Phí giao dịch: ${selectedService.fee.value}% số tiền${maxStr}`;
+    }
+    return 'Miễn phí giao dịch';
   };
 
   return (
@@ -115,6 +142,12 @@ export default function TransferP2P() {
       {currentStep === 0 && (
         <Card className="glass-card" style={{ borderRadius: 16 }}>
           <Spin spinning={loading}>
+            
+            <div style={{ marginBottom: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: '#64748b' }}>Số dư khả dụng:</Text>
+              <Text strong style={{ fontSize: 18, color: '#0ea5e9' }}>{balance.toLocaleString()} VND</Text>
+            </div>
+
             {services.length > 1 && (
               <Form.Item label="Dịch vụ" style={{ marginBottom: 16 }}>
                 <Select
@@ -125,6 +158,14 @@ export default function TransferP2P() {
                 />
               </Form.Item>
             )}
+            
+            <div style={{ marginBottom: 24 }}>
+              <Text type="secondary" style={{ fontStyle: 'italic' }}>
+                <DollarOutlined style={{ marginRight: 4 }} /> 
+                {getFeeDescription()}
+              </Text>
+            </div>
+
             <Form form={form} layout="vertical" onFinish={handleRequest}>
               <Form.Item
                 name="receiverPhone"
@@ -139,7 +180,7 @@ export default function TransferP2P() {
                 label="Số tiền (VND)"
                 rules={[
                   { required: true, message: 'Nhập số tiền!' },
-                  { type: 'number', min: 10000, message: 'Tối thiểu 10,000đ' }
+                  { type: 'number', min: 1, message: 'Số tiền không hợp lệ' }
                 ]}
               >
                 <InputNumber

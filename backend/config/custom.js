@@ -26,4 +26,6 @@ module.exports.custom = {
   
   jwtSecret: process.env.JWT_SECRET || 'SUPER_SECRET_JWT_KEY_2026',
 
+  redisUrl: process.env.REDIS_URL || 'rediss://default:gQAAAAAAAVQSAAIgcDEyMjhmNjY2NTIyMzA0ZGJiOWJjNDhiY2I4MjZjZWEwMA@powerful-mastiff-87058.upstash.io:6379',
+
 };

@@ -28,8 +28,13 @@ module.exports = {
             result: 'failed',
             errorCode: err.message
           });
+          
+          // Fail giao dịch nếu bị khóa PIN (PIN_LOCKED) hoặc giao dịch không còn hợp lệ, chỉ giữ pending nếu đơn thuần sai mã PIN (WRONG_PIN)
+          const isWrongPinOnly = err.message && err.message.startsWith('AUTH_ERR.WRONG_PIN');
+          const isDeadTransaction = err.message && (err.message.includes('PIN_LOCKED') || err.message.includes('INVALID_STATUS'));
+          
           await TransactionTrail.updateOne({ id: trail.id }).set({
-            status: 'failed',
+            status: (isWrongPinOnly && !isDeadTransaction) ? 'pending' : 'failed',
             transStep: input.TRANSTEP,
             transStepLog: logs,
             outputMessage: { error: err.message },
@@ -268,14 +273,48 @@ module.exports = {
       : (service.auth && service.auth.method ? service.auth.method : 'PIN');
 
     if (authMethod === 'PIN') {
+      // 1. Kiểm tra xem tài khoản có đang bị khóa PIN không
+      const lockKey = `pin_lock:${userId}`;
+      const failKey = `pin_fail:${userId}`;
+      
+      const isLocked = await RedisService.get(lockKey);
+      if (isLocked) {
+        const ttl = await RedisService.ttl(lockKey);
+        const minutes = Math.ceil(ttl / 60);
+        const timeMsg = minutes > 60 ? Math.ceil(minutes / 60) + ' giờ' : minutes + ' phút';
+        throw new Error(`AUTH_ERR.PIN_LOCKED: Mã PIN đang bị khóa. Vui lòng thử lại sau ${timeMsg}.`);
+      }
+
       if (!authCode || authCode === 'NONE') {
         throw new Error('AUTH_ERR.WRONG_PIN: Mã PIN không chính xác.');
       }
+      
       const customer = await Customer.findOne({ id: userId });
       if (!customer) throw new Error('AUTH_ERR.USER_NOT_FOUND: Không tìm thấy người dùng.');
+      
       const isValid = await SecurityUtil.compareText(authCode, customer.pinHash);
       if (!isValid) {
-        throw new Error('AUTH_ERR.WRONG_PIN: Mã PIN không chính xác.');
+        // Xử lý sai PIN (Khóa lũy tiến theo chuẩn iPhone)
+        const fails = await RedisService.incr(failKey);
+        
+        let lockTime = 0;
+        let lockMsg = '';
+        if (fails === 5) { lockTime = 60; lockMsg = '1 phút'; }
+        else if (fails === 6) { lockTime = 300; lockMsg = '5 phút'; }
+        else if (fails === 7 || fails === 8) { lockTime = 900; lockMsg = '15 phút'; }
+        else if (fails === 9) { lockTime = 3600; lockMsg = '1 giờ'; }
+        else if (fails >= 10) { lockTime = 86400; lockMsg = '24 giờ'; }
+
+        if (lockTime > 0) {
+          await RedisService.set(lockKey, 'locked', lockTime);
+          throw new Error(`AUTH_ERR.PIN_LOCKED: Nhập sai PIN ${fails} lần. Mã PIN bị khóa tạm thời ${lockMsg}.`);
+        } else {
+          throw new Error(`AUTH_ERR.WRONG_PIN: Mã PIN không chính xác. Bạn còn ${5 - fails} lần thử.`);
+        }
+      } else {
+        // Đúng PIN: Reset toàn bộ bộ đếm
+        await RedisService.del(failKey);
+        await RedisService.del(lockKey);
       }
     }
 

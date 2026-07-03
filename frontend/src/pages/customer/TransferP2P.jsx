@@ -114,7 +114,21 @@ export default function TransferP2P() {
         pinForm.resetFields();
       }
     } catch (err) {
-      message.error(err.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.');
+      const errorMsg = err.message && err.message !== 'Request failed with status code 400' ? err.message : (err.response?.data?.data?.message || err.response?.data?.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.');
+      
+      const rawError = err.response?.data?.data?.message || err.response?.data?.message || '';
+      if (rawError.includes('PIN_LOCKED') || rawError.includes('INVALID_STATUS')) {
+        Modal.error({
+          title: 'Giao dịch thất bại',
+          content: errorMsg,
+          okText: 'Về trang chủ',
+          onOk: () => {
+            navigate('/app/home');
+          }
+        });
+      } else {
+        message.error(errorMsg);
+      }
     } finally {
       setLoading(false);
     }

@@ -192,8 +192,9 @@ export default function TransactionTrail() {
                         <Text type="secondary" style={{ marginLeft: 8 }}>{log.timestamp}</Text>
                       </div>
                       <div>
-                        Result: <Text type={log.result === 'success' ? 'success' : 'danger'}>{log.result}</Text>
+                        Result: <Text type={log.result === 'success' ? 'success' : 'danger'} style={{ textTransform: 'uppercase' }}>{log.result}</Text>
                         {log.errorCode && <div>Error: <Text code type="danger">{log.errorCode}</Text></div>}
+                        {log.message && <div>Message: <Text type="secondary">{log.message}</Text></div>}
                       </div>
                     </Timeline.Item>
                   ))}

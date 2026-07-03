@@ -24,6 +24,13 @@ module.exports = {
         clientType: 'officer'
       });
 
+      // Bước 2: Confirm — luôn chạy để log
+      await TransactionEngine.engineConfirmTransaction({
+        transRefId: reqResult.transRefId,
+        userId,
+        clientType: 'officer'
+      });
+
       // Nếu auth = NONE → tự động chạy luôn Bước 3 (Verify)
       if (authMethod === 'NONE') {
         const verifyResult = await TransactionEngine.engineVerifyTransaction({

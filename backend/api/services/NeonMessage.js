@@ -5,15 +5,39 @@ module.exports = {
    * Bộ định tuyến chính của Engine
    */
   routeProcess: async function (input) {
-    switch (input.TRANSTEP) {
-      case 1:
-        return await this.processRequestStep(input);
-      case 2:
-        return await this.processConfirmStep(input);
-      case 3:
-        return await this.processVerifyStep(input);
-      default:
-        throw new Error('Invalid TRANSTEP');
+    try {
+      switch (input.TRANSTEP) {
+        case 1:
+          return await this.processRequestStep(input);
+        case 2:
+          return await this.processConfirmStep(input);
+        case 3:
+          return await this.processVerifyStep(input);
+        default:
+          throw new Error('Invalid TRANSTEP');
+      }
+    } catch (err) {
+      if (input.transRefId) {
+        // Cập nhật Audit Trail nếu có lỗi ở Step 2 hoặc 3
+        const trail = await TransactionTrail.findOne({ transRefId: input.transRefId });
+        if (trail && trail.status === 'pending') {
+          const logs = trail.transStepLog || [];
+          logs.push({
+            step: input.TRANSTEP,
+            timestamp: Date.now(),
+            result: 'failed',
+            errorCode: err.message
+          });
+          await TransactionTrail.updateOne({ id: trail.id }).set({
+            status: 'failed',
+            transStep: input.TRANSTEP,
+            transStepLog: logs,
+            outputMessage: { error: err.message },
+            updatedAt: Date.now()
+          });
+        }
+      }
+      throw err;
     }
   },
 
@@ -168,7 +192,13 @@ module.exports = {
       inputMessage: TRANSBODY,
       createdBy: userId,
       clientType: clientType,
-      totalAmount: totalAmount
+      totalAmount: totalAmount,
+      transStepLog: [{
+        step: 1,
+        timestamp: Date.now(),
+        result: 'success',
+        message: 'Khởi tạo giao dịch thành công'
+      }]
     }).fetch();
 
     return {
@@ -197,10 +227,26 @@ module.exports = {
     // Nếu là Officer làm Cash-in, auth mặc định NONE. Nếu khách hàng, dùng auth của service
     const authMethod = (clientType === 'officer') ? 'NONE' : (service.authMethod || 'PIN');
 
-    return {
+    const outputData = {
       transRefId: trail.transRefId,
       authMethod: authMethod
     };
+
+    const logs = trail.transStepLog || [];
+    logs.push({
+      step: 2,
+      timestamp: Date.now(),
+      result: 'success',
+      message: `Trả về phương thức xác thực ${authMethod}`
+    });
+
+    await TransactionTrail.updateOne({ id: trail.id }).set({
+      transStep: 2,
+      transStepLog: logs,
+      outputMessage: outputData
+    });
+
+    return outputData;
   },
 
   /**
@@ -398,9 +444,25 @@ module.exports = {
         createdTransactionId = insertRes.insertedId.toString();
 
         // Cập nhật Trail thành done
+        const successMessage = { message: 'Giao dịch thành công', transactionId: createdTransactionId };
+        const logs = trail.transStepLog || [];
+        logs.push({
+          step: 3,
+          timestamp: Date.now(),
+          result: 'success',
+          message: 'Xác thực PIN và hạch toán kế toán thành công'
+        });
+        
         await trailCollection.updateOne(
           { _id: new (require('mongodb').ObjectId)(trail.id) },
-          { $set: { status: 'done', updatedAt: Date.now() } },
+          { $set: { 
+              status: 'done', 
+              transStep: 3,
+              transStepLog: logs,
+              outputMessage: successMessage,
+              updatedAt: Date.now() 
+            } 
+          },
           { session }
         );
       });

@@ -64,6 +64,10 @@ export default function TransferP2P() {
       });
       const data = res.data.data;
       setTransRefId(data.transRefId);
+
+      // BƯỚC 2: Gọi Confirm (theo đúng chuẩn quy trình 3 bước)
+      await axios.post('/api/customer/transaction/confirm', { transRefId: data.transRefId });
+      const authMethod = selectedService?.authMethod || 'PIN';
       setPreviewData({
         receiver: values.receiverPhone,
         amount: data.preview?.amount || values.amount,
@@ -71,9 +75,20 @@ export default function TransferP2P() {
         total: data.preview?.totalAmount || values.amount,
         currency: data.preview?.currency || 'VND',
         transRefId: data.transRefId,
-        authMethod: selectedService?.authMethod || 'PIN'
+        authMethod: authMethod
       });
-      setCurrentStep(1);
+
+      if (authMethod === 'NONE') {
+        const verifyRes = await axios.post('/api/customer/transaction/verify', {
+          transRefId: data.transRefId,
+          authCode: 'NONE',
+        });
+        if (verifyRes.data.data) {
+          setCurrentStep(2);
+        }
+      } else {
+        setCurrentStep(1);
+      }
     } catch (err) {
       message.error(err.message || 'Lỗi khi tạo giao dịch.');
     } finally {

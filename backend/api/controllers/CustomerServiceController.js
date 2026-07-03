@@ -14,7 +14,7 @@ module.exports = {
       const { action } = req.body; // optional filter
 
       const whereClause = { status: 'active' };
-      if (action !== undefined) whereClause.action = action;
+      if (action !== undefined) {whereClause.action = action;}
 
       const services = await Service.find(whereClause).sort('name ASC');
 

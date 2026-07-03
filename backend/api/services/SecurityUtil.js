@@ -23,7 +23,7 @@ module.exports = {
     const salt = sails.config.custom.pocketSalt;
     const balanceStr = Number(balance).toString();
     const userStr = userId ? String(userId) : 'SYSTEM_WALLET';
-    
+
     return crypto.createHash('md5').update(`${balanceStr}_${userStr}_${salt}`).digest('hex');
   },
 
@@ -40,7 +40,7 @@ module.exports = {
     const secret = sails.config.custom.jwtSecret;
     try {
       return jwt.verify(token, secret);
-    } catch (error) {
+    } catch (unusedError) {
       throw new Error('INVALID_TOKEN');
     }
   }

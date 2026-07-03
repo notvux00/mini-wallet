@@ -22,6 +22,10 @@ module.exports = {
       type: 'number',
       allowNull: true,
     },
+    regex: {
+      type: 'string',
+      allowNull: true,
+    },
     isRequired: {
       type: 'boolean',
       defaultsTo: true,
@@ -47,5 +51,4 @@ module.exports = {
   },
 
 };
-
 

@@ -12,7 +12,7 @@ module.exports = {
 
       // Đọc cấu hình xác thực từ Service
       const service = await Service.findOne({ id: serviceId });
-      if (!service) return res.badRequest({ message: 'Không tìm thấy dịch vụ.' });
+      if (!service) {return res.badRequest({ message: 'Không tìm thấy dịch vụ.' });}
 
       const authMethod = service.auth && service.auth.method ? service.auth.method : 'NONE';
 

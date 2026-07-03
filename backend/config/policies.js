@@ -53,22 +53,26 @@ module.exports.policies = {
   },
 
   'OfficerBillerController': {
-    '*': ['isAuthorized', 'isOfficer'] 
+    '*': ['isAuthorized', 'isOfficer']
   },
 
-  'OfficerPocketController': { 
-    '*': ['isAuthorized', 'isOfficer'] 
+  'OfficerPocketController': {
+    '*': ['isAuthorized', 'isOfficer']
   },
 
-  'OfficerTransactionController': { 
-    '*': ['isAuthorized', 'isOfficer'] 
+  'OfficerTransactionController': {
+    '*': ['isAuthorized', 'isOfficer']
   },
 
-  'OfficerTrailController': { 
-    '*': ['isAuthorized', 'isOfficer'] 
+  'OfficerTrailController': {
+    '*': ['isAuthorized', 'isOfficer']
   },
 
   'OfficerServiceController': {
+    '*': ['isAuthorized', 'isOfficer']
+  },
+
+  'OfficerMetaController': {
     '*': ['isAuthorized', 'isOfficer']
   },
 

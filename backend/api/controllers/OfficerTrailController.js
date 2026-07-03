@@ -4,7 +4,7 @@ module.exports = {
       const page = req.body.page || 1;
       const limit = req.body.limit || 10;
       const skip = (page - 1) * limit;
-      const statusFilter = req.body.status; 
+      const statusFilter = req.body.status;
       const transRefIdFilter = req.body.transRefId;
       const serviceIdFilter = req.body.serviceId;
 

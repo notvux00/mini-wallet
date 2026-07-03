@@ -161,7 +161,7 @@ function _buildFieldBuilder(fields, serviceInfo) {
  * Vì vậy, ngoài các field Officer định nghĩa, cần tạo đủ record cho TẤT CẢ
  * biến hệ thống mà fieldBuilder inject (SERVICEID, CURRENCY, SENDERID, RECEIVERID).
  */
-function _buildTransFields(fields, serviceId, serviceInfo) {
+function _buildTransFields(fields, serviceId, unusedServiceInfo) {
   // ── Các biến hệ thống bắt buộc ───────────────────────────────────────────
   // Engine chỉ đưa vào TRANSBODY những field có khai trong TransField.
   // Thiếu bất kỳ record nào dưới đây → glSteps chạy với undefined.
@@ -216,6 +216,7 @@ function _buildTransFields(fields, serviceId, serviceInfo) {
     isRequired: f.required,
     minLength: f.minLength || null,
     maxLength: f.maxLength || null,
+    regex: f.regex || null,
     errorCode: f.errorCode || SVC_ERR.FIELD_BASE + (i + 1),
     errorMessage: f.errorMessage || `Trường "${f.variableName}" không hợp lệ.`,
     order: i + 1,
@@ -407,10 +408,10 @@ module.exports = {
   detail: async function (req, res) {
     try {
       const { id } = req.body;
-      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');
+      if (!id) {return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');}
 
       const service = await Service.findOne({ id });
-      if (!service) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');
+      if (!service) {return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');}
 
       const fields = await TransField.find({ service: id }).sort('order ASC');
       const validations = await TransValidation.find({ service: id }).sort('order ASC');
@@ -420,9 +421,9 @@ module.exports = {
         serviceInfo: {
           serviceCode: service.code,
           serviceName: service.name,
-          authMethod: service.auth?.method || 'PIN',
-          feeType: service.fee?.type || 'fixed',
-          feeValue: service.fee?.value || 0,
+          authMethod: service.auth && service.auth.method ? service.auth.method : 'PIN',
+          feeType: service.fee && service.fee.type ? service.fee.type : 'fixed',
+          feeValue: service.fee && service.fee.value ? service.fee.value : 0,
           action: service.action || 'none',
           actionParams: service.actionParams || {},
           status: service.status,
@@ -441,7 +442,7 @@ module.exports = {
   update: async function (req, res) {
     try {
       const { id, serviceInfo, fields, rules, accountingSteps } = req.body;
-      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');
+      if (!id) {return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');}
 
       // Kiểm tra tên biến Officer không trùng với biến hệ thống
       const conflict = _findReservedNameConflict(fields);
@@ -454,7 +455,7 @@ module.exports = {
       // ── Maintenance Mode Guard ──────────────────────────────────────────────
       // Officer phải tắt dịch vụ trước khi được phép sửa cấu hình.
       const existingService = await Service.findOne({ id });
-      if (!existingService) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');
+      if (!existingService) {return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');}
 
       if (existingService.status === 'active') {
         return res.error('BAD_REQUEST',
@@ -465,6 +466,7 @@ module.exports = {
 
       const fieldBuilder = _buildFieldBuilder(fields, serviceInfo);
       const glSteps = _buildGlSteps(accountingSteps);
+      const amountField = (glSteps.length > 0 && glSteps[0].amount) ? glSteps[0].amount : 'AMOUNT';
 
       const client = sails.getDatastore().manager.client;
       const db = client.db();
@@ -502,7 +504,7 @@ module.exports = {
           }
 
           // Tạo lại TransValidation
-          const validations = _buildValidations(rules, id);
+          const validations = _buildValidations(rules, id, amountField);
           if (validations.length > 0) {
             await db.collection('transvalidation').insertMany(validations, { session });
           }
@@ -511,6 +513,7 @@ module.exports = {
           await db.collection('transdefinition').insertOne({
             service: id,
             glSteps: glSteps,
+            amountField: amountField,
             status: 'active',
             createdAt: Date.now(),
             updatedAt: Date.now(),
@@ -531,10 +534,10 @@ module.exports = {
   toggleStatus: async function (req, res) {
     try {
       const { id } = req.body;
-      if (!id) return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');
+      if (!id) {return res.error('BAD_REQUEST', 'Thiếu ID dịch vụ.');}
 
       const service = await Service.findOne({ id });
-      if (!service) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');
+      if (!service) {return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');}
 
       const newStatus = service.status === 'active' ? 'inactive' : 'active';
 

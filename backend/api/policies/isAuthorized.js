@@ -22,7 +22,7 @@ module.exports = function(req, res, next) {
     // 5. Mở barie cho khách đi tiếp!
     return next();
 
-  } catch (error) {
+  } catch (unusedError) {
     // Nếu token giả/hết hạn -> Dùng thẳng hàm res.error() của bạn
     return res.error(respCode.UNAUTHORIZED, 'Token không hợp lệ hoặc đã hết hạn!');
   }

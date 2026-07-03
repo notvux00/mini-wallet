@@ -9,7 +9,7 @@ module.exports = {
       // Điều kiện tìm kiếm
       const whereClause = {};
       if (clientFilter) {
-        whereClause.client = clientFilter; 
+        whereClause.client = clientFilter;
       }
 
       const total = await Pocket.count(whereClause);
@@ -29,53 +29,53 @@ module.exports = {
 
   create: async function(req, res) {
     try {
-        const { client, currency, balance } = req.body;
+      const { client, currency, balance } = req.body;
 
-        // 1. Chỉ cho phép tạo loại ví system hoặc bank qua giao diện này
-        if (client !== 'system' && client !=='bank') {
-            return res.error(respCode.BAD_REQUEST, 'Chỉ được phép tạo ví Hệ thống hoặc Ngân hàng!');
-        }
+      // 1. Chỉ cho phép tạo loại ví system hoặc bank qua giao diện này
+      if (client !== 'system' && client !=='bank') {
+        return res.error(respCode.BAD_REQUEST, 'Chỉ được phép tạo ví Hệ thống hoặc Ngân hàng!');
+      }
 
-        // 2. Tính checksum bảo mật (vì ví này không có User, ta dùng chính chữ 'system' hoặc 'bank' làm mã định danh phụ)
-        const validChecksum = SecurityUtil.generatePocketChecksum(balance, client);
+      // 2. Tính checksum bảo mật (vì ví này không có User, ta dùng chính chữ 'system' hoặc 'bank' làm mã định danh phụ)
+      const validChecksum = SecurityUtil.generatePocketChecksum(balance, client);
 
-        // 3. Tạo ví trong database
-        const newPocket = await Pocket.create({
-            client: client,
-            currency: currency,
-            balance: balance,
-            checksum: validChecksum,
-            user: null, // Ví bank và hệ thống không có user cụ thể nào
-            state: 'active',
-            status: 'active',
-        }).fetch();
+      // 3. Tạo ví trong database
+      const newPocket = await Pocket.create({
+        client: client,
+        currency: currency,
+        balance: balance,
+        checksum: validChecksum,
+        user: null, // Ví bank và hệ thống không có user cụ thể nào
+        state: 'active',
+        status: 'active',
+      }).fetch();
 
-        return res.ok(newPocket, 'Tạo Ví thành công!');
+      return res.ok(newPocket, 'Tạo Ví thành công!');
     } catch (error) {
-        sails.log.error('Lỗi OfficerPocketController.create:', error);
-        return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
+      sails.log.error('Lỗi OfficerPocketController.create:', error);
+      return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
     }
   },
 
   toggleStatus: async function(req, res) {
     try {
-        const { id } = req.body;
+      const { id } = req.body;
 
-        const pocket = await Pocket.findOne({ id: id });
+      const pocket = await Pocket.findOne({ id: id });
 
-        if (!pocket) {
-            return res.error(respCode.NOT_FOUND, 'Không tìm thấy Ví này!');
-        }
+      if (!pocket) {
+        return res.error(respCode.NOT_FOUND, 'Không tìm thấy Ví này!');
+      }
 
-        // Đảo ngược trạng thái
-        const newStatus = pocket.status === 'active' ? 'inactive' : 'active';
+      // Đảo ngược trạng thái
+      const newStatus = pocket.status === 'active' ? 'inactive' : 'active';
 
-        await Pocket.updateOne({ id: id }).set({ status: newStatus });
+      await Pocket.updateOne({ id: id }).set({ status: newStatus });
 
-        return res.ok({ status: newStatus }, `Đã chuyển trạng thái Ví sang ${newStatus.toUpperCase()}`);
+      return res.ok({ status: newStatus }, `Đã chuyển trạng thái Ví sang ${newStatus.toUpperCase()}`);
     } catch (error) {
-        sails.log.error('Lỗi OfficerPocketController.toggleStatus:', error);
-        return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
+      sails.log.error('Lỗi OfficerPocketController.toggleStatus:', error);
+      return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
     }
-  } 
+  }
 };

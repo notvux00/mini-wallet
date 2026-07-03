@@ -11,6 +11,10 @@ module.exports = {
       type: 'json',
       defaultsTo: [],
     },
+    amountField: {
+      type: 'string',
+      defaultsTo: 'AMOUNT',
+    },
     status: {
       type: 'string',
       isIn: ['active', 'inactive'],
@@ -20,4 +24,3 @@ module.exports = {
   },
 
 };
-

@@ -33,7 +33,7 @@ module.exports = {
       isIn: ['active', 'inactive'],
       defaultsTo: 'active',
     }
-    
+
   },
 
 };

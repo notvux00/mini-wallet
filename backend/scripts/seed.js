@@ -26,7 +26,7 @@ function generateChecksum(balance, userId) {
 Sails.lift({
   hooks: { grunt: false, views: false, http: false, sockets: false, session: false },
   log: { level: 'warn' }
-}, async function (err, app) {
+}, async (err, app) => {
   if (err) {
     console.error('Sails lift failed:', err);
     process.exit(1);

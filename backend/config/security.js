@@ -33,7 +33,7 @@ module.exports.security = {
     allowOrigins: '*',
     allowCredentials: false,
     allowRequestHeaders: 'content-type, authorization',
-   },
+  },
 
 
   /****************************************************************************

@@ -42,7 +42,6 @@ module.exports.routes = {
   // 4. Nhóm API CMS cho Officer
   'POST /api/officer/customers/list': 'OfficerCustomerController.list', // Danh sách Customer
   'POST /api/officer/billers/list': 'OfficerBillerController.list', // Danh sách Biller cho Officer
-  'POST /api/customer/billers/list': 'CustomerBillerController.list', // Danh sách Biller cho Customer
   'POST /api/officer/billers/create': 'OfficerBillerController.create', // Tạo mới Biller
   'POST /api/officer/billers/toggle-status': 'OfficerBillerController.toggleStatus', // Khóa/Mở khóa Biller
   'POST /api/officer/pockets/list': 'OfficerPocketController.list', // Danh sách Pocket
@@ -52,13 +51,15 @@ module.exports.routes = {
   'POST /api/officer/trails/list': 'OfficerTrailController.list',               // Danh sách Trail
   'POST /api/officer/transactions/execute': 'OfficerTransactionController.execute', // Thực hiện giao dịch (mọi loại)
   'POST /api/officer/transactions/verify': 'OfficerTransactionController.verify',   // Xác thực PIN (nếu cần)
-  
+
   // APIs cho Service Configurator (Luồng Cấu Hình Động)
   'POST /api/officer/services/list': 'OfficerServiceController.list',
   'POST /api/officer/services/create': 'OfficerServiceController.create',
   'POST /api/officer/services/detail': 'OfficerServiceController.detail',
   'POST /api/officer/services/update': 'OfficerServiceController.update',
   'POST /api/officer/services/toggle-status': 'OfficerServiceController.toggleStatus',
+  'POST /api/officer/meta/validators': 'OfficerMetaController.validators',
+  'POST /api/officer/meta/field-queries': 'OfficerMetaController.fieldQueries',
 
   /***************************************************************************
   *                                                                          *

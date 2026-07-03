@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Checkbox, Space, Typography, Popconfirm, message, Row, Col, Collapse } from 'antd';
-import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, MobileOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Space, Typography, Popconfirm, message, Row, Col, Collapse } from 'antd';
+import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../../utils/axios';
 
@@ -35,7 +35,7 @@ export default function ServiceBuilder() {
         if (res.data && res.data.data) {
           setSystemPockets(Array.isArray(res.data.data) ? res.data.data : (res.data.data.items || []));
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     };
@@ -95,7 +95,7 @@ export default function ServiceBuilder() {
               })));
             }
           }
-        } catch (error) {
+        } catch {
           message.error('Lỗi lấy chi tiết cấu hình dịch vụ');
         }
       };
@@ -117,7 +117,7 @@ export default function ServiceBuilder() {
   // Handle GL Steps
   const addGlStep = () => {
     const defaultTo = systemPockets.length > 0 ? systemPockets[0].id : 'RECEIVER';
-    setGlSteps([...glSteps, { id: Date.now().toString(), amountVar: 'FEE', from: 'SENDER', to: defaultTo, title: 'Bút toán mới' }]);
+    setGlSteps([...glSteps, { id: Date.now().toString(), amountVar: 'DEBITFEE', from: 'SENDER', to: defaultTo, title: 'Bút toán mới' }]);
   };
   const removeGlStep = (id) => {
     setGlSteps(glSteps.filter(s => s.id !== id));
@@ -244,7 +244,7 @@ export default function ServiceBuilder() {
           <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
             Khai báo cấu trúc dữ liệu (payload) mà Frontend / Client bắt buộc phải gửi lên Engine khi thực hiện giao dịch này.
           </Text>
-          {inputFields.map((field, index) => (
+          {inputFields.map((field) => (
             <Card key={field.id} size="small" style={{ marginBottom: 12, background: '#f8fafc', borderColor: '#e2e8f0' }}>
               <Row gutter={16} align="middle">
                 <Col span={8}>
@@ -480,7 +480,7 @@ export default function ServiceBuilder() {
             Sử dụng các biến số ở Bước 2 để định nghĩa các bước di chuyển của dòng tiền (Kế toán ghi sổ kép).
           </Text>
           
-          {glSteps.map((step, index) => (
+          {glSteps.map((step) => (
             <Card key={step.id} style={{ marginBottom: 16, borderColor: '#cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                 <Input 
@@ -500,7 +500,7 @@ export default function ServiceBuilder() {
                     {inputFields.map(f => (
                       <Option key={f.variableName} value={f.variableName}>Biến: {f.variableName}</Option>
                     ))}
-                    <Option value="FEE">Phí dịch vụ (Tính ở B1)</Option>
+                    <Option value="DEBITFEE">Phí dịch vụ (Tính ở B1)</Option>
                   </Select>
                 </div>
                 

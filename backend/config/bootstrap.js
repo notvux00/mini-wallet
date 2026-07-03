@@ -5,7 +5,7 @@ module.exports.bootstrap = async function() {
   if (count === 0) {
     // Nếu chưa có, nhờ Máy soi băm cái mật khẩu mặc định
     const defaultPassword = await sails.services.securityutil.hashText('admin123'); // sails tự biến file thành chữ thường
-    
+
     await Officer.create({
       username: 'admin',
       passwordHash: defaultPassword,

@@ -9,12 +9,12 @@ module.exports = {
       // Điều kiện tìm kiếm
       const whereClause = {};
       if (phoneFilter) {
-        whereClause.phone = { contains: phoneFilter }; 
+        whereClause.phone = { contains: phoneFilter };
       }
 
       // Đếm tổng số lượng để Frontend làm phân trang
       const total = await Customer.count(whereClause);
-      
+
       // Truy vấn dữ liệu thực tế
       const items = await Customer.find({
         where: whereClause,
@@ -26,7 +26,7 @@ module.exports = {
       // Join dữ liệu ví thủ công (vì thuộc tính pocket định dạng string)
       const pocketIds = items.map(item => item.pocket).filter(id => id);
       const pockets = await Pocket.find({ id: pocketIds });
-      
+
       items.forEach(item => {
         const pocketObj = pockets.find(p => p.id === item.pocket);
         item.pocket = pocketObj || { id: item.pocket, balance: 0 };

@@ -3,7 +3,7 @@ module.exports = {
   register: async function(req, res) {
     try {
       const { phone, name, password, pin } = req.body;
-      
+
       // 1. Kiểm tra đầu vào: Số điện thoại đã tồn tại chưa?
       const existingUser = await Customer.findOne({ phone: phone });
       if (existingUser) {
@@ -59,9 +59,9 @@ module.exports = {
 
       // 1. Tìm xem khách có tồn tại không
       const customer = await Customer.findOne({ phone: phone });
-      
-      // Khúc này dùng trick bảo mật: Khách sai số điện thoại hay sai mật khẩu 
-      // thì đều báo chung 1 câu lỗi "INVALID_CREDENTIALS". 
+
+      // Khúc này dùng trick bảo mật: Khách sai số điện thoại hay sai mật khẩu
+      // thì đều báo chung 1 câu lỗi "INVALID_CREDENTIALS".
       // Đừng báo "Số điện thoại không tồn tại", Hacker sẽ biết để rà xem số nào có đăng ký ví.
       if (!customer) {
         return res.error(respCode.INVALID_CREDENTIALS, 'Số điện thoại hoặc mật khẩu không đúng!');
@@ -78,7 +78,7 @@ module.exports = {
         id: customer.id,
         role: 'customer' // Lưu lại role để biết đây là Khách, không phải Officer
       };
-      
+
       const token = SecurityUtil.generateToken(payload);
 
       // 4. Trả thẻ thông hành về cho khách
@@ -102,7 +102,7 @@ module.exports = {
   getMe: async function(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const userData = await Customer.findOne({ id: userId });
       if (!userData) {
         return res.error(respCode.NOT_FOUND, 'Không tìm thấy thông tin khách hàng!');

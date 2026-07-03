@@ -25,13 +25,13 @@ module.exports = {
 
       // 4. Trả về đúng quy tắc: (data, message)
       return res.ok(
-        { 
-          token: token, 
+        {
+          token: token,
           user: {
             id: officer.id,
             username: officer.username,
             name: officer.name,
-            role: 'officer' } 
+            role: 'officer' }
         },
         'Đăng nhập quản trị viên thành công!'
       );
@@ -46,7 +46,7 @@ module.exports = {
   getMe: async function(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const userData = await Officer.findOne({ id: userId });
       if (!userData) {
         return res.error(respCode.NOT_FOUND, 'Không tìm thấy thông tin quản trị viên!');

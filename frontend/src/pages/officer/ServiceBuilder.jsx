@@ -24,7 +24,7 @@ export default function ServiceBuilder() {
     minAmount: false
   });
   const [glSteps, setGlSteps] = useState([
-    { id: '1', amountVar: 'AMOUNT', from: 'SENDER', to: 'RECEIVER', title: 'Chuyển tiền gốc' }
+    { id: '1', amountVar: undefined, from: undefined, to: undefined, title: 'Chuyển tiền gốc' }
   ]);
   const [systemPockets, setSystemPockets] = useState([]);
 
@@ -116,8 +116,7 @@ export default function ServiceBuilder() {
 
   // Handle GL Steps
   const addGlStep = () => {
-    const defaultTo = systemPockets.length > 0 ? systemPockets[0].id : 'RECEIVER';
-    setGlSteps([...glSteps, { id: Date.now().toString(), amountVar: 'FEE', from: 'SENDER', to: defaultTo, title: 'Bút toán mới' }]);
+    setGlSteps([...glSteps, { id: Date.now().toString(), amountVar: undefined, from: undefined, to: undefined, title: 'Bút toán mới' }]);
   };
   const removeGlStep = (id) => {
     setGlSteps(glSteps.filter(s => s.id !== id));
@@ -496,7 +495,7 @@ export default function ServiceBuilder() {
                 {/* AMOUNT */}
                 <div style={{ flex: 1 }}>
                   <Text strong>Lấy khoản tiền:</Text><br/>
-                  <Select value={step.amountVar} onChange={val => updateGlStep(step.id, 'amountVar', val)} style={{ width: '100%', marginTop: 8 }}>
+                  <Select placeholder="Chọn khoản tiền" value={step.amountVar} onChange={val => updateGlStep(step.id, 'amountVar', val)} style={{ width: '100%', marginTop: 8 }}>
                     {inputFields.map(f => (
                       <Option key={f.variableName} value={f.variableName}>Biến: {f.variableName}</Option>
                     ))}
@@ -511,7 +510,7 @@ export default function ServiceBuilder() {
                 {/* FROM POCKET */}
                 <div style={{ flex: 1 }}>
                   <Text strong>Trừ từ Ví (Nợ):</Text><br/>
-                  <Select value={step.from} onChange={val => updateGlStep(step.id, 'from', val)} style={{ width: '100%', marginTop: 8 }}>
+                  <Select placeholder="Chọn ví trừ tiền" value={step.from} onChange={val => updateGlStep(step.id, 'from', val)} style={{ width: '100%', marginTop: 8 }}>
                     <Option value="SENDER">
                       {basicInfo.action === 'cashIn' ? 'Ví Ngân Hàng' : 'Ví Khách Hàng Gửi'}
                     </Option>
@@ -529,7 +528,7 @@ export default function ServiceBuilder() {
                 {/* TO POCKET */}
                 <div style={{ flex: 1 }}>
                   <Text strong>Cộng vào Ví (Có):</Text><br/>
-                  <Select value={step.to} onChange={val => updateGlStep(step.id, 'to', val)} style={{ width: '100%', marginTop: 8 }}>
+                  <Select placeholder="Chọn ví cộng tiền" value={step.to} onChange={val => updateGlStep(step.id, 'to', val)} style={{ width: '100%', marginTop: 8 }}>
                     <Option value="SENDER">
                       {basicInfo.action === 'cashIn' ? 'Ví Ngân Hàng' : 'Ví Khách Hàng Gửi'}
                     </Option>

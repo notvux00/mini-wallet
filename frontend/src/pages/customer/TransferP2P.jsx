@@ -37,11 +37,15 @@ export default function TransferP2P() {
     if (!selectedServiceId) return message.warning('Vui lòng chọn loại dịch vụ chuyển tiền.');
     setLoading(true);
     try {
+      const selectedService = services.find(s => s.id === selectedServiceId);
+      const amountFieldName = selectedService?.amountField || 'AMOUNT';
+      const receiverFieldName = selectedService?.receiverPhoneField || 'RECEIVERPHONE';
+      
       const res = await axios.post('/api/customer/transaction/request', {
         serviceId: selectedServiceId,
         transData: {
-          RECEIVERPHONE: values.receiverPhone,
-          AMOUNT: values.amount,
+          [receiverFieldName]: values.receiverPhone,
+          [amountFieldName]: values.amount,
         }
       });
       const data = res.data.data;
@@ -53,6 +57,7 @@ export default function TransferP2P() {
         total: data.preview?.totalAmount || values.amount,
         currency: data.preview?.currency || 'VND',
         transRefId: data.transRefId,
+        authMethod: selectedService?.authMethod || 'PIN'
       });
       setCurrentStep(1);
     } catch (err) {
@@ -68,7 +73,7 @@ export default function TransferP2P() {
     try {
       const res = await axios.post('/api/customer/transaction/verify', {
         transRefId,
-        authCode: values.pin,
+        authCode: previewData?.authMethod === 'NONE' ? 'NONE' : values.pin,
       });
       if (res.data.data) {
         setCurrentStep(2);
@@ -194,22 +199,30 @@ export default function TransferP2P() {
 
             {/* Form nhập PIN */}
             <Form form={pinForm} layout="vertical" onFinish={handleVerifyPin}>
-              <Form.Item
-                name="pin"
-                label="Nhập mã PIN 6 chữ số để xác nhận"
-                rules={[
-                  { required: true, message: 'PIN là bắt buộc!' },
-                  { len: 6, message: 'PIN phải đúng 6 chữ số!' }
-                ]}
-              >
-                <Input.Password
-                  size="large"
-                  maxLength={6}
-                  prefix={<LockOutlined />}
-                  placeholder="••••••"
-                  style={{ textAlign: 'center', letterSpacing: 8, fontSize: 20 }}
-                />
-              </Form.Item>
+              {previewData?.authMethod === 'PIN' ? (
+                <Form.Item
+                  name="pin"
+                  label="Nhập mã PIN 6 chữ số để xác nhận"
+                  rules={[
+                    { required: true, message: 'PIN là bắt buộc!' },
+                    { len: 6, message: 'PIN phải đúng 6 chữ số!' }
+                  ]}
+                >
+                  <Input.Password
+                    size="large"
+                    maxLength={6}
+                    prefix={<LockOutlined />}
+                    placeholder="••••••"
+                    style={{ textAlign: 'center', letterSpacing: 8, fontSize: 20 }}
+                  />
+                </Form.Item>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '16px 0', background: '#f0fdf4', borderRadius: 8, marginBottom: 24, border: '1px solid #bbf7d0' }}>
+                  <Text type="success" strong>Giao dịch này không yêu cầu mã PIN.</Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 13 }}>Vui lòng kiểm tra kỹ thông tin trước khi xác nhận.</Text>
+                </div>
+              )}
 
               <Row gutter={12}>
                 <Col span={10}>

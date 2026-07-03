@@ -17,16 +17,33 @@ module.exports = {
       if (action !== undefined) whereClause.action = action;
 
       const services = await Service.find(whereClause).sort('name ASC');
+      
+      const definitions = await TransDefinition.find({ service: services.map(s => s.id) });
+      const defMap = {};
+      for (const def of definitions) {
+        defMap[def.service] = def;
+      }
 
       // Chỉ trả về thông tin cần thiết, không expose fieldBuilder nội bộ
-      const result = services.map(s => ({
-        id: s.id,
-        code: s.code,
-        name: s.name,
-        action: s.action,
-        authMethod: s.auth && s.auth.method ? s.auth.method : 'NONE',
-        fee: s.fee,
-      }));
+      const result = services.map(s => {
+        const def = defMap[s.id];
+        let amountField = 'AMOUNT';
+        if (def && def.amountField) {
+          amountField = def.amountField;
+        } else if (def && def.glSteps && def.glSteps.length > 0) {
+          amountField = def.glSteps[0].amount;
+        }
+        return {
+          id: s.id,
+          code: s.code,
+          name: s.name,
+          action: s.action,
+          authMethod: s.auth && s.auth.method ? s.auth.method : 'NONE',
+          fee: s.fee,
+          amountField: amountField,
+          receiverPhoneField: s.actionParams?.receiverPhoneField || 'RECEIVERPHONE',
+        };
+      });
 
       return res.ok(result, 'Lấy danh sách dịch vụ thành công!');
     } catch (error) {

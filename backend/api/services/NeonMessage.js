@@ -123,9 +123,33 @@ module.exports = {
       // checkBalance sẽ được verify lại kỹ ở bước 3, nhưng có thể check nhanh ở đây nếu muốn
     }
 
-    // 6. Tính phí (Giả sử tạm thời FEE = 0 hoặc lấy từ transData nếu có truyền)
-    // Ở hệ thống thực tế có thể gọi bảng FeeMatrix.
-    if (TRANSBODY.FEE === undefined) TRANSBODY.FEE = 0;
+    // 6. Tính phí động dựa trên cấu hình service
+    let amountField = 'AMOUNT';
+    const transDef = await TransDefinition.findOne({ service: serviceId });
+    if (transDef && transDef.glSteps && transDef.glSteps.length > 0) {
+      amountField = transDef.glSteps[0].amount; // lấy trường số tiền từ bút toán kế toán đầu tiên
+    } else {
+      amountField = Object.keys(TRANSBODY).find(k => k.includes('AMOUNT') || k === 'SOTIEN') || 'AMOUNT';
+    }
+    
+    const amountValue = Number(TRANSBODY[amountField]) || 0;
+    let calculatedFee = 0;
+    
+    if (service.fee) {
+      if (service.fee.type === 'fixed') {
+        calculatedFee = Number(service.fee.value) || 0;
+      } else if (service.fee.type === 'percent') {
+        calculatedFee = amountValue * ((Number(service.fee.value) || 0) / 100);
+        if (service.fee.max && calculatedFee > service.fee.max) {
+          calculatedFee = service.fee.max;
+        }
+      }
+    }
+    
+    // Ghi đè phí vào TRANSBODY
+    TRANSBODY.FEE = calculatedFee;
+    TRANSBODY.DEBITFEE = calculatedFee;
+    TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee;
 
     // IN RA LOG ĐỂ KIỂM TRA TRANSBODY TỪNG BƯỚC
     sails.log.info('--- [TEST] TRANSBODY ĐÃ ĐƯỢC TẠO ---');
@@ -134,17 +158,7 @@ module.exports = {
 
     // 7. Sinh mã giao dịch & Tạo TransactionTrail
     const transRefId = 'TRX' + Date.now() + crypto.randomBytes(2).toString('hex').toUpperCase();
-    
-    // Tìm Total Amount để show preview (đọc trực tiếp từ cấu hình Kế toán của dịch vụ)
-    let amountField = 'AMOUNT';
-    const transDef = await TransDefinition.findOne({ service: serviceId });
-    if (transDef && transDef.glSteps && transDef.glSteps.length > 0) {
-      amountField = transDef.glSteps[0].amount; // lấy trường số tiền từ bút toán kế toán đầu tiên
-    } else {
-      // Fallback tìm field nào có chữ AMOUNT hoặc có chữ tiền
-      amountField = Object.keys(TRANSBODY).find(k => k.includes('AMOUNT') || k === 'SOTIEN') || 'AMOUNT';
-    }
-    const totalAmount = (Number(TRANSBODY[amountField]) || 0) + (Number(TRANSBODY.FEE) || 0);
+    const totalAmount = TRANSBODY.TOTALAMOUNT;
 
     const trail = await TransactionTrail.create({
       transRefId,
@@ -225,24 +239,82 @@ module.exports = {
       throw new Error('SYS_ERR.NO_GL_STEPS: Dịch vụ chưa cấu hình bút toán kế toán.');
     }
 
+    // --- TASK 4: Re-validation & Fee Re-calculation ---
+    // Validate Required fields
+    const transFields = await TransField.find({ service: service.id }).sort('order ASC');
+    for (const tf of transFields) {
+      if (tf.isRequired && (TRANSBODY[tf.fieldName] === undefined || TRANSBODY[tf.fieldName] === null || TRANSBODY[tf.fieldName] === '')) {
+        throw new Error(`${tf.errorCode}: ${tf.errorMessage}`);
+      }
+    }
+    
+    // Validate TransValidation
+    const validations = await TransValidation.find({ service: service.id }).sort('order ASC');
+    for (const val of validations) {
+      if (val.validateFunc === 'validateReceiverIsNotSender') {
+        if (TRANSBODY.SENDERID && TRANSBODY.RECEIVERID && TRANSBODY.SENDERID === TRANSBODY.RECEIVERID) {
+          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        }
+      } else if (val.validateFunc === 'validateMinAmount') {
+        const parts = val.validateFields.split(':');
+        const amountField = parts[0];
+        const minVal = parseInt(parts[1], 10) || 0;
+        if (TRANSBODY[amountField] !== undefined && Number(TRANSBODY[amountField]) < minVal) {
+          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        }
+      }
+    }
+
+    // Fee Re-calculation
+    const txAmountField = transDef.amountField || (transDef.glSteps && transDef.glSteps[0] ? transDef.glSteps[0].amount : 'AMOUNT');
+    const amountValue = Number(TRANSBODY[txAmountField]) || 0;
+    let calculatedFee = 0;
+    
+    if (service.fee) {
+      if (service.fee.type === 'fixed') {
+        calculatedFee = Number(service.fee.value) || 0;
+      } else if (service.fee.type === 'percent') {
+        calculatedFee = amountValue * ((Number(service.fee.value) || 0) / 100);
+        if (service.fee.max && calculatedFee > service.fee.max) {
+          calculatedFee = service.fee.max;
+        }
+      }
+    }
+    TRANSBODY.FEE = calculatedFee;
+    TRANSBODY.DEBITFEE = calculatedFee;
+    TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee;
+    // ----------------------------------------------------
+
     // 3. Thực thi Kế toán sử dụng MongoDB Replica Set Transaction (ACID)
     const db = Pocket.getDatastore().manager;
     const client = db.client; // Lấy MongoClient từ manager
     const pocketCollection = db.collection(Pocket.tableName);
     const transactionCollection = db.collection(Transaction.tableName);
     const trailCollection = db.collection(TransactionTrail.tableName);
+    const pocketEntryCollection = db.collection('pocketentry'); // Bảng PocketEntry
 
     let createdTransactionId = null;
+    let isLocked = false;
     const session = client.startSession();
 
     try {
+      // --- TASK 3: Khóa tài khoản (Race-condition protection) ---
+      if (TRANSBODY.SENDERID) {
+        const lockedPocket = await Pocket.updateOne({ id: TRANSBODY.SENDERID, state: 'active' }).set({ state: 'inProgress' });
+        if (!lockedPocket) {
+          throw new Error('TRX_ERR.ACCOUNT_LOCKED: Tài khoản đang xử lý giao dịch khác, vui lòng thử lại sau.');
+        }
+        isLocked = true;
+      }
+      // ----------------------------------------------------------
+
       await session.withTransaction(async () => {
         // Lặp qua các bước kế toán (glSteps)
         const glSteps = transDef.glSteps.sort((a, b) => a.order - b.order);
 
         for (const step of glSteps) {
-          const amountValue = Number(TRANSBODY[step.amount]) || 0;
-          if (amountValue <= 0) continue;
+          const stepAmountValue = Number(TRANSBODY[step.amount]) || 0;
+          if (stepAmountValue <= 0) continue;
 
           let debitPocketId = null;
           if (step.debit.level === 'productLevel') debitPocketId = TRANSBODY[step.debit.target];
@@ -260,8 +332,8 @@ module.exports = {
 
           // MongoDB driver v6+: findOneAndUpdate trả về document trực tiếp
           const updatedDebitPocket = await pocketCollection.findOneAndUpdate(
-            { _id: { $in: [debitPocketId, debitObjectId] }, balance: { $gte: amountValue } },
-            { $inc: { balance: -amountValue } },
+            { _id: { $in: [debitPocketId, debitObjectId] }, balance: { $gte: stepAmountValue } },
+            { $inc: { balance: -stepAmountValue } },
             { session, returnDocument: 'after' }
           );
 
@@ -280,7 +352,7 @@ module.exports = {
           const creditObjectId = new (require('mongodb').ObjectId)(creditPocketId);
           const updatedCreditPocket = await pocketCollection.findOneAndUpdate(
             { _id: { $in: [creditPocketId, creditObjectId] } },
-            { $inc: { balance: amountValue } },
+            { $inc: { balance: stepAmountValue } },
             { session, returnDocument: 'after' }
           );
 
@@ -293,19 +365,30 @@ module.exports = {
               { session }
             );
           }
+
+          // --- TASK 5: Sinh bút toán chi tiết (PocketEntry) ---
+          await pocketEntryCollection.insertOne({
+            transRefId: transRefId,
+            stepOrder: step.order,
+            debit: debitPocketId,
+            credit: creditPocketId,
+            amount: stepAmountValue,
+            status: 'settled',
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          }, { session });
+          // ----------------------------------------------------
         }
 
         // Tạo Transaction Record trong cùng 1 session
-        // Đọc tên biến số tiền từ TransDefinition (do Officer đặt: AMOUNT, SOTIEN,...)
-        const txAmountField = transDef.amountField || (transDef.glSteps && transDef.glSteps[0] ? transDef.glSteps[0].amount : 'AMOUNT');
         const newTrans = {
           transRefId: transRefId,
           serviceId: service.id,
           sender: TRANSBODY.SENDERID || null,
           receiver: TRANSBODY.RECEIVERID || null,
-          amount: Number(TRANSBODY[txAmountField]) || 0,
-          fee: Number(TRANSBODY.FEE) || 0,
-          totalAmount: Number(TRANSBODY.TOTALAMOUNT) || Number(TRANSBODY[txAmountField]) || 0,
+          amount: amountValue,
+          fee: calculatedFee,
+          totalAmount: TRANSBODY.TOTALAMOUNT || amountValue,
           billerRefId: TRANSBODY.BILLERREFID || null,
           status: 'done',
           createdAt: Date.now(),
@@ -323,6 +406,11 @@ module.exports = {
       });
     } finally {
       await session.endSession();
+      // --- TASK 3: Mở khóa tài khoản (Release) ---
+      if (isLocked && TRANSBODY.SENDERID) {
+        await Pocket.updateOne({ id: TRANSBODY.SENDERID }).set({ state: 'active' });
+      }
+      // -------------------------------------------
     }
 
     return {

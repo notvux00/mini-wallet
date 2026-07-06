@@ -1,5 +1,10 @@
 module.exports.bootstrap = async function() {
 
+  // Khởi tạo CronService
+  if (sails.services.cronservice) {
+    sails.services.cronservice.init();
+  }
+
   // Kiểm tra xem đã có Officer nào trong DB chưa
   const count = await Officer.count();
   if (count === 0) {

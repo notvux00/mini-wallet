@@ -546,6 +546,11 @@ module.exports = {
           // ----------------------------------------------------
         }
 
+        // Khai báo các biến cho Biller Retry
+        let billerSyncStatus = null;
+        let finalBillerCode = null;
+        let finalBillerRefId = null;
+
         // --- 3.5 Biller Payment Adapter (Generic Mapping) ---
         if (service.action === 'billerTrans') {
           // Lấy cấu hình từ Service
@@ -561,11 +566,14 @@ module.exports = {
           if (!biller) throw new Error('BILLER_ERR.NOT_FOUND: Biller không tồn tại.');
 
           if (biller.paymentUrl) {
+            finalBillerCode = billerCode;
+            finalBillerRefId = TRANSBODY.BILLERREFID || '';
+            
             try {
               let reqBody = {};
               if (biller.payReqKeyCustomer) reqBody[biller.payReqKeyCustomer] = customerCode;
               if (biller.payReqKeyAmount) reqBody[biller.payReqKeyAmount] = TRANSBODY.TOTALAMOUNT || amountValue;
-              if (biller.payReqKeyBillRef) reqBody[biller.payReqKeyBillRef] = TRANSBODY.BILLERREFID || '';
+              if (biller.payReqKeyBillRef) reqBody[biller.payReqKeyBillRef] = finalBillerRefId;
 
               sails.log.info(`[Biller Adapter] PAY to ${biller.paymentUrl}`, reqBody);
               const response = await axios.post(biller.paymentUrl, reqBody, { timeout: 15000 });
@@ -577,11 +585,22 @@ module.exports = {
               const resStatus = String(_.get(response.data, statusPath) || '');
               
               if (resStatus.toLowerCase() !== successVal.toLowerCase()) {
-                throw new Error(`Nhà cung cấp từ chối thanh toán: ${resStatus}`);
+                throw new Error(`BILLER_ERR.REJECTED: Nhà cung cấp từ chối thanh toán: ${resStatus}`);
               }
+              
+              // Thành công
+              billerSyncStatus = 'success';
             } catch (error) {
               sails.log.error('[Biller Adapter] Lỗi gọi Payment:', error.message);
-              throw new Error(`BILLER_ERR.PAY_FAILED: Lỗi gạch nợ với nhà cung cấp (${error.message})`);
+              
+              // Nếu Biller từ chối rõ ràng thì huỷ giao dịch (throw error)
+              if (error.message.startsWith('BILLER_ERR.REJECTED')) {
+                throw error;
+              }
+              
+              // Nếu lỗi mạng / Timeout -> Không huỷ giao dịch, đưa vào trạng thái pending để Retry
+              sails.log.warn('[Biller Adapter] Gặp lỗi mạng, chuyển trạng thái sang pending để Retry Cronjob xử lý.');
+              billerSyncStatus = 'pending';
             }
           }
         }
@@ -616,16 +635,25 @@ module.exports = {
           message: 'Xác thực PIN và hạch toán kế toán thành công'
         });
         
+        const updateData = { 
+          status: 'done', 
+          transStep: 3,
+          transStepLog: logs,
+          outputMessage: successMessage,
+          updatedAt: Date.now() 
+        };
+        
+        // Thêm trường Biller nếu có
+        if (billerSyncStatus) {
+          updateData.billerSyncStatus = billerSyncStatus;
+          updateData.billerSyncRetries = 0;
+          updateData.billerCode = finalBillerCode;
+          updateData.billerRefId = finalBillerRefId;
+        }
+        
         await trailCollection.updateOne(
           { _id: new (require('mongodb').ObjectId)(trail.id) },
-          { $set: { 
-              status: 'done', 
-              transStep: 3,
-              transStepLog: logs,
-              outputMessage: successMessage,
-              updatedAt: Date.now() 
-            } 
-          },
+          { $set: updateData },
           { session }
         );
       });

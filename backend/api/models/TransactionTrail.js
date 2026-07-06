@@ -39,6 +39,23 @@ module.exports = {
     transStepLog: {
       type: 'json',
       defaultsTo: [],
+    },
+    billerSyncStatus: {
+      type: 'string',
+      isIn: ['pending', 'success', 'failed'],
+      allowNull: true
+    },
+    billerSyncRetries: {
+      type: 'number',
+      defaultsTo: 0
+    },
+    billerCode: {
+      type: 'string',
+      allowNull: true
+    },
+    billerRefId: {
+      type: 'string',
+      allowNull: true
     }
   },
 

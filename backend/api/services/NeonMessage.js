@@ -334,7 +334,7 @@ module.exports = {
 
     // --- TASK: Chống Race Condition Bước 3 (Distributed Lock) ---
     const trxLockKey = `trx_lock:${transRefId}`;
-    const acquiredLock = await RedisService.setnx(trxLockKey, 'locked', 10);
+    const acquiredLock = await RedisService.setnx(trxLockKey, 'locked', 30); // Tăng lên 30s để bao phủ thời gian Timeout của Biller
     if (!acquiredLock) {
       throw new Error('TRX_ERR.RACE_CONDITION: Giao dịch đang được xử lý, vui lòng không thao tác quá nhanh.');
     }
@@ -567,7 +567,7 @@ module.exports = {
 
           if (biller.paymentUrl) {
             finalBillerCode = billerCode;
-            finalBillerRefId = TRANSBODY.BILLERREFID || '';
+            finalBillerRefId = TRANSBODY.BILLERREFID || transRefId;
             
             try {
               let reqBody = {};

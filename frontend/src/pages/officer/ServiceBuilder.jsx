@@ -419,7 +419,8 @@ export default function ServiceBuilder() {
                     <Select 
                       style={{ width: '100%', marginTop: 8 }} 
                       size="large"
-                      value={basicInfo.actionParams?.billerIdField || 'BILLERID'}
+                      placeholder="Chọn biến (phải tạo ở Tab Giao diện)"
+                      value={basicInfo.actionParams?.billerIdField || undefined}
                       onChange={(val) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, billerIdField: val } })}
                     >
                       {inputFields.map(f => (
@@ -432,7 +433,8 @@ export default function ServiceBuilder() {
                     <Select 
                       style={{ width: '100%', marginTop: 8 }} 
                       size="large"
-                      value={basicInfo.actionParams?.customerCodeField || 'BILLCODE'}
+                      placeholder="Chọn biến (phải tạo ở Tab Giao diện)"
+                      value={basicInfo.actionParams?.customerCodeField || undefined}
                       onChange={(val) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, customerCodeField: val } })}
                     >
                       {inputFields.map(f => (
@@ -499,6 +501,9 @@ export default function ServiceBuilder() {
                     {inputFields.map(f => (
                       <Option key={f.variableName} value={f.variableName}>Biến: {f.variableName}</Option>
                     ))}
+                    {basicInfo.action === 'billerTrans' && !inputFields.some(f => f.variableName === 'AMOUNT') && (
+                      <Option value="AMOUNT">Số tiền Hóa đơn (Do Biller trả về)</Option>
+                    )}
                     <Option value="FEE">Phí dịch vụ (Tính ở B1)</Option>
                   </Select>
                 </div>

@@ -105,7 +105,8 @@ module.exports = {
         }
         return {
           ...tx,
-          serviceName
+          serviceName,
+          direction: tx.sender === pocket.id ? 'debit' : 'credit'
         };
       }));
 

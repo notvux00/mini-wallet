@@ -50,6 +50,7 @@ module.exports.routes = {
   'POST /api/officer/pockets/create': 'OfficerPocketController.create', // Tạo mới Ví (System/Bank)
   'POST /api/officer/transactions/list': 'OfficerTransactionController.list',   // Danh sách toàn bộ giao dịch
   'POST /api/officer/trails/list': 'OfficerTrailController.list',               // Danh sách Trail
+  'POST /api/officer/pocket-entries/list': 'OfficerPocketEntryController.list', // Danh sách Bút toán (Pocket Entry)
   'POST /api/officer/transactions/execute': 'OfficerTransactionController.execute', // Thực hiện giao dịch (mọi loại)
   'POST /api/officer/transactions/verify': 'OfficerTransactionController.verify',   // Xác thực PIN (nếu cần)
   
@@ -59,6 +60,10 @@ module.exports.routes = {
   'POST /api/officer/services/detail': 'OfficerServiceController.detail',
   'POST /api/officer/services/update': 'OfficerServiceController.update',
   'POST /api/officer/services/toggle-status': 'OfficerServiceController.toggleStatus',
+
+  // Mock APIs
+  'POST /api/mock/biller/inquiry': 'MockBillerController.inquiry',
+  'POST /api/mock/biller/pay': 'MockBillerController.pay',
 
   /***************************************************************************
   *                                                                          *

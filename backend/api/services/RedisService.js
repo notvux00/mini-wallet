@@ -15,7 +15,9 @@ module.exports = {
       }
       redisClient = new Redis(redisUrl, {
         tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
-        maxRetriesPerRequest: 3
+        maxRetriesPerRequest: 3,
+        commandTimeout: 3000,
+        enableOfflineQueue: false
       });
 
       redisClient.on('connect', () => {
@@ -35,49 +37,49 @@ module.exports = {
   get: async function (key) {
     const client = this.getClient();
     if (!client) return null;
-    return await client.get(key);
+    try { return await client.get(key); } catch (e) { return null; }
   },
 
-  /**
-   * Lấy thời gian sống còn lại của key (TTL) theo giây
-   */
   ttl: async function (key) {
     const client = this.getClient();
     if (!client) return -2;
-    return await client.ttl(key);
+    try { return await client.ttl(key); } catch (e) { return -2; }
   },
 
-  /**
-   * Set giá trị cho 1 key với TTL (tùy chọn) theo giây
-   */
   set: async function (key, value, ttlSeconds) {
     const client = this.getClient();
     if (!client) return false;
-    
-    if (ttlSeconds) {
-      await client.set(key, value, 'EX', ttlSeconds);
-    } else {
-      await client.set(key, value);
-    }
-    return true;
+    try {
+      if (ttlSeconds) await client.set(key, value, 'EX', ttlSeconds);
+      else await client.set(key, value);
+      return true;
+    } catch (e) { return false; }
   },
 
-  /**
-   * Tăng giá trị của key lên 1 (Dùng cho đếm số lần sai)
-   */
   incr: async function (key) {
     const client = this.getClient();
-    if (!client) return 0;
-    return await client.incr(key);
+    if (!client) return 1; // bypass if no redis
+    try { return await client.incr(key); } catch (e) { return 1; }
   },
 
-  /**
-   * Xóa một hoặc nhiều key
-   */
   del: async function (key) {
     const client = this.getClient();
     if (!client) return false;
-    await client.del(key);
-    return true;
+    try { await client.del(key); return true; } catch (e) { return false; }
+  },
+
+  setnx: async function (key, value, ttlSeconds) {
+    const client = this.getClient();
+    if (!client) return true; // Bypass nếu không có Redis
+    try {
+      const result = await client.set(key, value, 'EX', ttlSeconds, 'NX');
+      return result === 'OK';
+    } catch (e) { return true; } // bypass lock
+  },
+
+  expire: async function (key, ttlSeconds) {
+    const client = this.getClient();
+    if (!client) return false;
+    try { await client.expire(key, ttlSeconds); return true; } catch (e) { return false; }
   }
 };

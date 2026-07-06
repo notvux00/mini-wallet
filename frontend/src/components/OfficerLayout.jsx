@@ -12,7 +12,8 @@ import {
   UserSwitchOutlined,
   WalletFilled,
   DashboardOutlined,
-  DollarOutlined
+  DollarOutlined,
+  SwapOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -33,6 +34,7 @@ export default function OfficerLayout() {
     { key: '/officer/pockets', icon: <WalletOutlined />, label: 'Pockets' },
     { key: '/officer/billers', icon: <BankOutlined />, label: 'Billers' },
     { key: '/officer/customers', icon: <UserSwitchOutlined />, label: 'Customers' },
+    { key: '/officer/pocket-entries', icon: <SwapOutlined />, label: 'Pocket Entries' },
     { key: '/officer/trail', icon: <HistoryOutlined />, label: 'Transaction Trail' },
     { key: '/officer/history', icon: <FileDoneOutlined />, label: 'History' },
   ];

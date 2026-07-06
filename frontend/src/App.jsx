@@ -10,6 +10,7 @@ import BillerManagement from './pages/officer/BillerManagement';
 import CustomerManagement from './pages/officer/CustomerManagement';
 import TransactionTrail from './pages/officer/TransactionTrail';
 import TransactionHistory from './pages/officer/TransactionHistory';
+import PocketEntryHistory from './pages/officer/PocketEntryHistory';
 import CustomerLayout from './components/CustomerLayout';
 import CustomerLogin from './pages/customer/CustomerLogin';
 import CustomerRegister from './pages/customer/CustomerRegister';
@@ -40,6 +41,7 @@ function App() {
             <Route path="customers" element={<CustomerManagement />} />
             <Route path="history" element={<TransactionHistory />} />
             <Route path="trail" element={<TransactionTrail />} />
+            <Route path="pocket-entries" element={<PocketEntryHistory />} />
           </Route>
 
           {/* Customer App */}

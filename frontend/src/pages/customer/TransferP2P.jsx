@@ -65,7 +65,8 @@ export default function TransferP2P() {
         transData: {
           [receiverFieldName]: values.receiverPhone,
           [amountFieldName]: values.amount,
-        }
+          DESCRIPTION: values.description || `Chuyển tiền cho ${values.receiverPhone}`,
+        },
       });
       const data = res.data.data;
       setTransRefId(data.transRefId);
@@ -80,7 +81,8 @@ export default function TransferP2P() {
         total: data.preview?.totalAmount || values.amount,
         currency: data.preview?.currency || 'VND',
         transRefId: data.transRefId,
-        authMethod: authMethod
+        authMethod: authMethod,
+        description: values.description || `Chuyển tiền cho ${values.receiverPhone}`
       });
 
       if (authMethod === 'NONE') {
@@ -114,9 +116,13 @@ export default function TransferP2P() {
         pinForm.resetFields();
       }
     } catch (err) {
-      const errorMsg = err.message && err.message !== 'Request failed with status code 400' ? err.message : (err.response?.data?.data?.message || err.response?.data?.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.');
+      let errorMsg = err.message && err.message !== 'Request failed with status code 400' ? err.message : (err.response?.data?.data?.message || err.response?.data?.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.');
+      const rawError = errorMsg;
       
-      const rawError = err.response?.data?.data?.message || err.response?.data?.message || '';
+      if (errorMsg.includes(': ')) {
+        errorMsg = errorMsg.substring(errorMsg.indexOf(': ') + 2);
+      }
+      
       if (rawError.includes('PIN_LOCKED') || rawError.includes('INVALID_STATUS')) {
         Modal.error({
           title: 'Giao dịch thất bại',
@@ -235,6 +241,18 @@ export default function TransferP2P() {
                 />
               </Form.Item>
 
+              <Form.Item
+                name="description"
+                label="Ghi chú (Không bắt buộc)"
+              >
+                <Input.TextArea
+                  rows={2}
+                  size="large"
+                  placeholder="Ví dụ: Tiền ăn trưa, Mua đồ..."
+                  maxLength={100}
+                />
+              </Form.Item>
+
               <Button
                 type="primary"
                 size="large"
@@ -269,6 +287,10 @@ export default function TransferP2P() {
               <Row justify="space-between" style={{ marginBottom: 8 }}>
                 <Text type="secondary">Phí</Text>
                 <Text>{previewData.fee.toLocaleString('vi-VN')} {previewData.currency}</Text>
+              </Row>
+              <Row justify="space-between" style={{ marginBottom: 8 }}>
+                <Text type="secondary">Ghi chú</Text>
+                <Text>{previewData.description}</Text>
               </Row>
               <Divider style={{ margin: '12px 0' }} />
               <Row justify="space-between">
@@ -350,6 +372,10 @@ export default function TransferP2P() {
               <Row justify="space-between" style={{ marginBottom: 8 }}>
                 <Text type="secondary">Số tiền</Text>
                 <Text strong>{previewData?.amount?.toLocaleString('vi-VN')} VND</Text>
+              </Row>
+              <Row justify="space-between" style={{ marginBottom: 8 }}>
+                <Text type="secondary">Ghi chú</Text>
+                <Text>{previewData?.description}</Text>
               </Row>
               <Divider style={{ margin: '8px 0' }} />
               <Row justify="space-between">

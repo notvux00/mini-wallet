@@ -54,11 +54,17 @@ export default function CustomerHistory() {
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
-      render: (amount) => (
-        <strong style={{ color: '#0ea5e9' }}>
-          {amount?.toLocaleString('vi-VN')} đ
-        </strong>
-      )
+      render: (amount, record) => {
+        const isCredit = record.direction === 'credit';
+        const displayValue = isCredit ? amount : record.totalAmount;
+        const sign = isCredit ? '+' : '-';
+        const color = isCredit ? '#22c55e' : '#ef4444';
+        return (
+          <strong style={{ color }}>
+            {sign}{displayValue?.toLocaleString('vi-VN')} đ
+          </strong>
+        );
+      }
     },
     {
       title: 'Service',
@@ -73,6 +79,12 @@ export default function CustomerHistory() {
       key: 'status',
       align: 'center',
       render: (status) => <Tag color="success">{status?.toUpperCase()}</Tag>
+    },
+    {
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description',
+      render: (text) => <Text type="secondary" italic>{text || 'Không có ghi chú'}</Text>
     }
   ];
 

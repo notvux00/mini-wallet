@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const axios = require('axios');
+const _ = require('lodash');
 
 module.exports = {
   /**
@@ -52,15 +54,29 @@ module.exports = {
   processRequestStep: async function (input) {
     const { serviceId, transData, userId, clientType } = input;
 
+    // --- TASK: Chống Spam Bước 1 (Rate Limiting) ---
+    const rateKey = `rate_limit_req:${userId}`;
+    const reqCount = await RedisService.incr(rateKey);
+    if (reqCount === 1) {
+      // Lần đầu tiên gọi trong chu kỳ, set TTL 10 giây
+      await RedisService.expire(rateKey, 10);
+    } else if (reqCount > 3) {
+      throw new Error('SYS_ERR.RATE_LIMIT_EXCEEDED: Bạn đang thao tác quá nhanh, vui lòng đợi vài giây.');
+    }
+    // ------------------------------------------------
+
     // 1. Fetch Service & kiểm tra trạng thái
     const service = await Service.findOne({ id: serviceId });
     if (!service) throw new Error('SVC_ERR.SERVICE_NOT_FOUND: Dịch vụ không tồn tại.');
     if (service.status !== 'active') throw new Error('SVC_ERR.SERVICE_INACTIVE: Dịch vụ đang tạm ngưng.');
 
     // 2. Chuẩn bị TRANSBODY
+    const descField = service.descriptionField || 'DESCRIPTION';
+    
     const TRANSBODY = {
       SERVICEID: serviceId,
       CURRENCY: 'VND', // Mặc định
+      [descField]: transData.description || transData[descField] || ''
     };
 
     // 3. Xử lý fieldBuilder (bao gồm mapping, query, jwt, và các field do user gửi lên)
@@ -126,6 +142,58 @@ module.exports = {
       }
     }
 
+    // 3.5 Biller Inquiry Adapter (Generic Mapping)
+    if (service.action === 'billerTrans') {
+      // Đọc cấu hình từ Service (Tầng 1) để biết Frontend truyền vào field nào
+      const billerIdField = service.actionParams?.billerIdField || 'BILLERID';
+      const customerCodeField = service.actionParams?.customerCodeField || 'BILLCODE';
+
+      const billerCode = transData[billerIdField] || transData.BILLER_CODE;
+      const customerCode = transData[customerCodeField] || transData.CUSTOMER_CODE;
+      
+      if (!billerCode || !customerCode) {
+        throw new Error(`BILLER_ERR.MISSING_DATA: Không tìm thấy Biller Code (${billerIdField}) hoặc Customer Code (${customerCodeField}).`);
+      }
+
+      const biller = await Biller.findOne({ code: billerCode });
+      if (!biller) throw new Error('BILLER_ERR.NOT_FOUND: Biller không tồn tại.');
+      if (biller.status !== 'active') throw new Error('BILLER_ERR.INACTIVE: Biller đang bị khóa.');
+
+      if (biller.inquiryUrl) {
+        try {
+          // Xây dựng Payload động dựa trên Key Name Officer cấu hình
+          let reqBody = {};
+          if (biller.inqReqKeyCustomer) reqBody[biller.inqReqKeyCustomer] = customerCode;
+          if (biller.inqReqKeyBiller) reqBody[biller.inqReqKeyBiller] = billerCode;
+
+          // Gọi API
+          sails.log.info(`[Biller Adapter] INQUIRY to ${biller.inquiryUrl}`, reqBody);
+          const response = await axios.post(biller.inquiryUrl, reqBody, { timeout: 10000 });
+          sails.log.info(`[Biller Adapter] INQUIRY RES:`, response.data);
+
+          // Đọc dữ liệu bằng Mapping
+          const amountPath = biller.inquiryResMappingAmount || 'amountOwed';
+          const billRefPath = biller.inquiryResMappingBillRef || 'billRef';
+          
+          const amountValue = Number(_.get(response.data, amountPath));
+          const billRefValue = String(_.get(response.data, billRefPath) || '');
+
+          if (isNaN(amountValue)) {
+            throw new Error('Không thể đọc số tiền từ kết quả Biller.');
+          }
+
+          // Nhồi vào TRANSBODY
+          TRANSBODY['AMOUNT'] = amountValue;
+          TRANSBODY['TOTALAMOUNT'] = amountValue; // Sẽ được cộng thêm phí sau
+          TRANSBODY['BILLERREFID'] = billRefValue;
+          
+        } catch (error) {
+          sails.log.error('[Biller Adapter] Lỗi gọi Inquiry:', error.message);
+          throw new Error('BILLER_ERR.INQUIRY_FAILED: Lỗi kết nối đến nhà cung cấp dịch vụ.');
+        }
+      }
+    }
+
     // 4. Validate Required fields dựa trên TransField
     const transFields = await TransField.find({ service: serviceId }).sort('order ASC');
     for (const tf of transFields) {
@@ -161,7 +229,11 @@ module.exports = {
       amountField = Object.keys(TRANSBODY).find(k => k.includes('AMOUNT') || k === 'SOTIEN') || 'AMOUNT';
     }
     
-    const amountValue = Number(TRANSBODY[amountField]) || 0;
+    const amountValue = Number(TRANSBODY[amountField]) || Number(TRANSBODY['AMOUNT']) || 0;
+    
+    // [QUAN TRỌNG] Đảm bảo biến động (Ví dụ: SO_TIEN_HOA_DON) được nạp giá trị để Bút toán (GL Step) đọc được
+    TRANSBODY[amountField] = amountValue;
+    
     let calculatedFee = 0;
     
     if (service.fee) {
@@ -260,7 +332,16 @@ module.exports = {
   processVerifyStep: async function (input) {
     const { transRefId, authCode, userId, clientType } = input;
 
-    const trail = await TransactionTrail.findOne({ transRefId, createdBy: userId });
+    // --- TASK: Chống Race Condition Bước 3 (Distributed Lock) ---
+    const trxLockKey = `trx_lock:${transRefId}`;
+    const acquiredLock = await RedisService.setnx(trxLockKey, 'locked', 10);
+    if (!acquiredLock) {
+      throw new Error('TRX_ERR.RACE_CONDITION: Giao dịch đang được xử lý, vui lòng không thao tác quá nhanh.');
+    }
+    // -------------------------------------------------------------
+
+    try {
+      const trail = await TransactionTrail.findOne({ transRefId, createdBy: userId });
     if (!trail) throw new Error('TRX_ERR.NOT_FOUND: Giao dịch không tồn tại.');
     if (trail.status !== 'pending') throw new Error('TRX_ERR.INVALID_STATUS: Giao dịch đã được xử lý.');
 
@@ -465,7 +546,49 @@ module.exports = {
           // ----------------------------------------------------
         }
 
+        // --- 3.5 Biller Payment Adapter (Generic Mapping) ---
+        if (service.action === 'billerTrans') {
+          // Lấy cấu hình từ Service
+          const billerIdField = service.actionParams?.billerIdField || 'BILLERID';
+          const customerCodeField = service.actionParams?.customerCodeField || 'BILLCODE';
+
+          const billerCode = TRANSBODY[billerIdField] || transData[billerIdField] || transData.BILLER_CODE;
+          const customerCode = TRANSBODY[customerCodeField] || transData[customerCodeField] || transData.CUSTOMER_CODE;
+          
+          if (!billerCode) throw new Error('BILLER_ERR.MISSING_DATA: Thiếu Biller Code để thanh toán.');
+
+          const biller = await Biller.findOne({ code: billerCode });
+          if (!biller) throw new Error('BILLER_ERR.NOT_FOUND: Biller không tồn tại.');
+
+          if (biller.paymentUrl) {
+            try {
+              let reqBody = {};
+              if (biller.payReqKeyCustomer) reqBody[biller.payReqKeyCustomer] = customerCode;
+              if (biller.payReqKeyAmount) reqBody[biller.payReqKeyAmount] = TRANSBODY.TOTALAMOUNT || amountValue;
+              if (biller.payReqKeyBillRef) reqBody[biller.payReqKeyBillRef] = TRANSBODY.BILLERREFID || '';
+
+              sails.log.info(`[Biller Adapter] PAY to ${biller.paymentUrl}`, reqBody);
+              const response = await axios.post(biller.paymentUrl, reqBody, { timeout: 15000 });
+              sails.log.info(`[Biller Adapter] PAY RES:`, response.data);
+
+              const statusPath = biller.payResMappingStatus || 'status';
+              const successVal = biller.payResMappingSuccessValue || 'success';
+              
+              const resStatus = String(_.get(response.data, statusPath) || '');
+              
+              if (resStatus.toLowerCase() !== successVal.toLowerCase()) {
+                throw new Error(`Nhà cung cấp từ chối thanh toán: ${resStatus}`);
+              }
+            } catch (error) {
+              sails.log.error('[Biller Adapter] Lỗi gọi Payment:', error.message);
+              throw new Error(`BILLER_ERR.PAY_FAILED: Lỗi gạch nợ với nhà cung cấp (${error.message})`);
+            }
+          }
+        }
+        // ----------------------------------------------------
+
         // Tạo Transaction Record trong cùng 1 session
+        const descField = service.descriptionField || 'DESCRIPTION';
         const newTrans = {
           transRefId: transRefId,
           serviceId: service.id,
@@ -475,6 +598,7 @@ module.exports = {
           fee: calculatedFee,
           totalAmount: TRANSBODY.TOTALAMOUNT || amountValue,
           billerRefId: TRANSBODY.BILLERREFID || null,
+          description: TRANSBODY[descField] || null,
           status: 'done',
           createdAt: Date.now(),
           updatedAt: Date.now()
@@ -520,5 +644,9 @@ module.exports = {
       message: 'Giao dịch thành công',
       transactionId: createdTransactionId
     };
+    
+    } finally {
+      await RedisService.del(`trx_lock:${transRefId}`);
+    }
   }
 };

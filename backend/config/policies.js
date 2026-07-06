@@ -72,4 +72,12 @@ module.exports.policies = {
     '*': ['isAuthorized', 'isOfficer']
   },
 
+  'OfficerPocketEntryController': { 
+    '*': ['isAuthorized', 'isOfficer'] 
+  },
+
+  'MockBillerController': {
+    '*': true
+  }
+
 };

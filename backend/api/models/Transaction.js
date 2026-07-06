@@ -39,6 +39,10 @@ module.exports = {
       type: 'string',
       defaultsTo: 'done',
     },
+    description: {
+      type: 'string',
+      allowNull: true,
+    }
 
   },
 

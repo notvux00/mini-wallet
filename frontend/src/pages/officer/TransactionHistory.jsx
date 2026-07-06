@@ -22,6 +22,7 @@ export default function TransactionHistory() {
     { title: 'Total Amount', dataIndex: 'totalAmount', key: 'totalAmount', align: 'right', render: text => <Text type="success" strong>{(text ?? 0).toLocaleString()}</Text> },
     { title: 'Biller Ref ID', dataIndex: 'billerRefId', key: 'billerRefId', align: 'center', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
     { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => <Tag color="success" icon={<CheckCircleOutlined />}>{(text || 'done').toUpperCase()}</Tag> },
+    { title: 'Description', dataIndex: 'description', key: 'description', align: 'center', render: text => <Text type="secondary" italic>{text || 'N/A'}</Text> },
     { title: 'Created At', dataIndex: 'createdAt', key: 'createdAt', align: 'center' }
   ];
 
@@ -53,6 +54,7 @@ export default function TransactionHistory() {
         totalAmount: item.totalAmount,
         billerRefId: item.billerRefId,
         status: item.status,
+        description: item.description,
         createdAt: new Date(item.createdAt).toLocaleString('vi-VN')
       }));
 

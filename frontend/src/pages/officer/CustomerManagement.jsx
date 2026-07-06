@@ -123,14 +123,11 @@ export default function CustomerManagement() {
         if (amountFieldConf) amountFieldName = amountFieldConf.fieldName;
       }
 
-      // Nội suy trường ghi chú (nếu có cấu hình thì lấy, không thì mặc định NOTE)
-      const noteField = cashInService.fields?.find(f => f.fieldName.toUpperCase().includes('NOTE') || f.fieldName.toUpperCase().includes('GHI'))?.fieldName || 'NOTE';
-
       const transData = {
         [phoneFieldName]: selectedCustomer.phone,
         [amountFieldName]: values.amount,
         [bankFieldName]: values.bankPocketId,
-        [noteField]: values.note
+        description: values.note
       };
 
       await axios.post('/api/officer/transactions/execute', {

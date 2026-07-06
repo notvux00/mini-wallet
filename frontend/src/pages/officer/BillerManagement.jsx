@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../utils/axios';
-import { Card, Typography, Table, Tag, Button, Space, Popconfirm, Modal, Form, Input, Row, Col, message, Select } from 'antd';
+import { Card, Typography, Table, Tag, Button, Space, Popconfirm, Modal, Form, Input, Row, Col, message, Select, Collapse } from 'antd';
 import { PlusOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -183,6 +183,65 @@ export default function BillerManagement() {
           <Form.Item label="Payment URL (Step 5.1)" name="paymentUrl" rules={[{ required: true, message: 'Vui lòng nhập URL thanh toán' }]}>
             <Input placeholder="https://api.domain.com/pay" size="large" />
           </Form.Item>
+
+          <Collapse style={{ marginTop: 16 }}>
+            <Collapse.Panel header="Cấu hình API Mapping (Nâng cao)" key="1" forceRender={true}>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Text strong>Khâu Tra Cứu (Inquiry)</Text>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Tên biến Mã Khách Hàng (Req)" name="inqReqKeyCustomer" initialValue="customerCode">
+                    <Input placeholder="VD: ma_khach_hang" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Tên biến Mã Dịch Vụ (Req)" name="inqReqKeyBiller" initialValue="billerCode">
+                    <Input placeholder="VD: provider_code" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Amount Mapping (JSONPath)" name="inquiryResMappingAmount" initialValue="data.amountOwed">
+                    <Input placeholder="VD: data.amountOwed" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Bill Ref Mapping (JSONPath)" name="inquiryResMappingBillRef" initialValue="data.billRef">
+                    <Input placeholder="VD: data.billRef" />
+                  </Form.Item>
+                </Col>
+                
+                <Col span={24} style={{ marginTop: 16 }}>
+                  <Text strong>Khâu Thanh Toán (Pay)</Text>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Biến Mã KH (Req)" name="payReqKeyCustomer" initialValue="customerCode">
+                    <Input placeholder="VD: ma_khach_hang" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Biến Số Tiền (Req)" name="payReqKeyAmount" initialValue="amount">
+                    <Input placeholder="VD: amount" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Biến Mã HĐ (Req)" name="payReqKeyBillRef" initialValue="billRef">
+                    <Input placeholder="VD: bill_id" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Status Mapping (JSONPath)" name="payResMappingStatus" initialValue="status">
+                    <Input placeholder="VD: status" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Success Value" name="payResMappingSuccessValue" initialValue="success">
+                    <Input placeholder="VD: success" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Collapse.Panel>
+          </Collapse>
 
           <Form.Item style={{ marginBottom: 0, marginTop: 32, textAlign: 'right' }}>
             <Space>

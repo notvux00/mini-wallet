@@ -36,6 +36,10 @@ module.exports = {
       type: 'string',
       isIn: ['active', 'inactive'],
       defaultsTo: 'active',
+    },
+    descriptionField: {
+      type: 'string',
+      defaultsTo: 'DESCRIPTION',
     }
 
   },

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Table, Tag, message, Input, Space } from 'antd';
 import axios from '../../utils/axios';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
+import { SocketContext } from '../../context/SocketContext';
 
 export default function TransactionHistory() {
   const formatId = (id) => {
@@ -31,6 +32,7 @@ export default function TransactionHistory() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [searchTransRef, setSearchTransRef] = useState('');
   const [searchServiceId, setSearchServiceId] = useState('');
+  const { io } = useContext(SocketContext);
 
   const fetchTransactions = async (page = 1, transRefId = searchTransRef, serviceId = searchServiceId) => {
     setLoading(true);
@@ -70,6 +72,20 @@ export default function TransactionHistory() {
   useEffect(() => {
     fetchTransactions();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', () => {
+        // Có giao dịch mới, cập nhật lại danh sách hiện tại
+        fetchTransactions(pagination.current);
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io, pagination.current]);
 
   const handleTableChange = (newPagination) => {
     fetchTransactions(newPagination.current);

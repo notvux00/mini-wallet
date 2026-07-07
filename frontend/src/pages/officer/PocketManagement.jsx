@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
 import { Card, Typography, Table, Tag, Button, Modal, Form, Select, InputNumber, message, Space, Popconfirm } from 'antd';
 import { PlusOutlined, WalletOutlined, SafetyCertificateFilled, WarningFilled, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
+import { SocketContext } from '../../context/SocketContext';
 const { Option } = Select;
 
 export default function PocketManagement() {
@@ -45,6 +46,7 @@ export default function PocketManagement() {
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [filterClient, setFilterClient] = useState('');
+  const { io } = useContext(SocketContext);
 
   const fetchPockets = async (page = 1, client = filterClient) => {
     setLoading(true);
@@ -80,6 +82,20 @@ export default function PocketManagement() {
   useEffect(() => {
     fetchPockets();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', () => {
+        // Cập nhật lại số dư ví khi có giao dịch
+        fetchPockets(pagination.current);
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io, pagination.current]);
 
   const handleTableChange = (newPagination) => {
     fetchPockets(newPagination.current);

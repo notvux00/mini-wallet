@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Table, Tag, message } from 'antd';
 import axios from '../../utils/axios';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { SocketContext } from '../../context/SocketContext';
 
 const { Title, Text } = Typography;
 
@@ -9,6 +10,7 @@ export default function CustomerHistory() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const { io } = useContext(SocketContext);
 
   const fetchHistory = async (page = 1) => {
     setLoading(true);
@@ -30,6 +32,22 @@ export default function CustomerHistory() {
   useEffect(() => {
     fetchHistory(pagination.current);
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', (msg) => {
+        if (msg?.transaction?.status === 'done') {
+          message.success('Có giao dịch mới được hoàn tất!');
+        }
+        fetchHistory(pagination.current);
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io, pagination.current]);
 
   const handleTableChange = (newPagination) => {
     setPagination(newPagination);

@@ -672,6 +672,22 @@ module.exports = {
       // -------------------------------------------
     }
 
+    // Broadcast Real-time event since Waterline lifecycle doesn't trigger on native insert
+    if (sails.sockets) {
+      const socketTrans = {
+        id: createdTransactionId,
+        status: 'done'
+      };
+      
+      // Sử dụng blast để phát đi toàn bộ các client đang kết nối (đảm bảo không bị miss do join room fail)
+      sails.sockets.blast('transaction_updated', { transaction: socketTrans });
+      
+      // Vẫn giữ lại broadcast theo room cho chắc chắn
+      sails.sockets.broadcast('officer_room', 'transaction_updated', { transaction: socketTrans });
+      if (TRANSBODY.SENDERID) sails.sockets.broadcast(`pocket_room_${TRANSBODY.SENDERID}`, 'transaction_updated', { transaction: socketTrans });
+      if (TRANSBODY.RECEIVERID) sails.sockets.broadcast(`pocket_room_${TRANSBODY.RECEIVERID}`, 'transaction_updated', { transaction: socketTrans });
+    }
+
     return {
       transRefId: transRefId,
       status: 'SUCCESS',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import OfficerLayout from './components/OfficerLayout';
 import OfficerLogin from './pages/officer/OfficerLogin';
 import OfficerDashboard from './pages/officer/OfficerDashboard';
@@ -26,42 +27,44 @@ import './index.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/app/login" replace />} />
-          
-          {/* Officer Routes */}
-          <Route path="/officer" element={<OfficerLayout />}>
-            <Route index element={<Navigate to="/officer/dashboard" replace />} />
-            <Route path="login" element={<OfficerLogin />} />
-            <Route path="dashboard" element={<OfficerDashboard />} />
-            <Route path="services" element={<ServiceManagement />} />
-            <Route path="service-builder" element={<ServiceBuilder />} />
-            <Route path="service-builder/:id" element={<ServiceBuilder />} />
-            <Route path="pockets" element={<PocketManagement />} />
-            <Route path="billers" element={<BillerManagement />} />
-            <Route path="customers" element={<CustomerManagement />} />
-            <Route path="history" element={<TransactionHistory />} />
-            <Route path="trail" element={<TransactionTrail />} />
-            <Route path="pocket-entries" element={<PocketEntryHistory />} />
-          </Route>
+    <BrowserRouter>
+      <AuthProvider>
+        <SocketProvider>
+          <Routes>
+            <Route path="/" element={<Navigate to="/app/login" replace />} />
+            
+            {/* Officer Routes */}
+            <Route path="/officer" element={<OfficerLayout />}>
+              <Route index element={<Navigate to="/officer/dashboard" replace />} />
+              <Route path="login" element={<OfficerLogin />} />
+              <Route path="dashboard" element={<OfficerDashboard />} />
+              <Route path="services" element={<ServiceManagement />} />
+              <Route path="service-builder" element={<ServiceBuilder />} />
+              <Route path="service-builder/:id" element={<ServiceBuilder />} />
+              <Route path="pockets" element={<PocketManagement />} />
+              <Route path="billers" element={<BillerManagement />} />
+              <Route path="customers" element={<CustomerManagement />} />
+              <Route path="history" element={<TransactionHistory />} />
+              <Route path="trail" element={<TransactionTrail />} />
+              <Route path="pocket-entries" element={<PocketEntryHistory />} />
+            </Route>
 
-          {/* Customer App */}
-          <Route path="/app" element={<CustomerLayout />}>
-            <Route index element={<Navigate to="/app/login" replace />} />
-            <Route path="login" element={<CustomerLogin />} />
-            <Route path="register" element={<CustomerRegister />} />
-            <Route path="home" element={<CustomerDashboard />} />
-            <Route path="transfer" element={<TransferP2P />} />
-            <Route path="bill-payment" element={<BillPayment />} />
-            <Route path="topup" element={<MobileTopup />} />
-            <Route path="history" element={<CustomerHistory />} />
-            <Route path="coming-soon" element={<ComingSoon />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Customer App */}
+            <Route path="/app" element={<CustomerLayout />}>
+              <Route index element={<Navigate to="/app/login" replace />} />
+              <Route path="login" element={<CustomerLogin />} />
+              <Route path="register" element={<CustomerRegister />} />
+              <Route path="home" element={<CustomerDashboard />} />
+              <Route path="transfer" element={<TransferP2P />} />
+              <Route path="bill-payment" element={<BillPayment />} />
+              <Route path="topup" element={<MobileTopup />} />
+              <Route path="history" element={<CustomerHistory />} />
+              <Route path="coming-soon" element={<ComingSoon />} />
+            </Route>
+          </Routes>
+        </SocketProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

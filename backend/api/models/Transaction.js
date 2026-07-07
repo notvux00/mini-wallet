@@ -46,5 +46,23 @@ module.exports = {
 
   },
 
+  afterCreate: function (newlyCreatedRecord, proceed) {
+    if (sails.sockets) {
+      sails.sockets.broadcast('officer_room', 'transaction_updated', { transaction: newlyCreatedRecord });
+      if (newlyCreatedRecord.sender) sails.sockets.broadcast(`pocket_room_${newlyCreatedRecord.sender}`, 'transaction_updated', { transaction: newlyCreatedRecord });
+      if (newlyCreatedRecord.receiver) sails.sockets.broadcast(`pocket_room_${newlyCreatedRecord.receiver}`, 'transaction_updated', { transaction: newlyCreatedRecord });
+    }
+    return proceed();
+  },
+
+  afterUpdate: function (updatedRecord, proceed) {
+    if (sails.sockets) {
+      sails.sockets.broadcast('officer_room', 'transaction_updated', { transaction: updatedRecord });
+      if (updatedRecord.sender) sails.sockets.broadcast(`pocket_room_${updatedRecord.sender}`, 'transaction_updated', { transaction: updatedRecord });
+      if (updatedRecord.receiver) sails.sockets.broadcast(`pocket_room_${updatedRecord.receiver}`, 'transaction_updated', { transaction: updatedRecord });
+    }
+    return proceed();
+  }
+
 };
 

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Table, Tag, message, Input, Space } from 'antd';
 import axios from '../../utils/axios';
 import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
+import { SocketContext } from '../../context/SocketContext';
 
 export default function PocketEntryHistory() {
   const formatId = (id) => {
@@ -32,6 +33,7 @@ export default function PocketEntryHistory() {
   const [searchTransRef, setSearchTransRef] = useState('');
   const [searchDebit, setSearchDebit] = useState('');
   const [searchCredit, setSearchCredit] = useState('');
+  const { io } = useContext(SocketContext);
 
   const fetchEntries = async (page = 1, transRefId = searchTransRef, debit = searchDebit, credit = searchCredit) => {
     setLoading(true);
@@ -68,6 +70,20 @@ export default function PocketEntryHistory() {
   useEffect(() => {
     fetchEntries();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', () => {
+        // Có giao dịch mới, cập nhật lại danh sách hiện tại
+        fetchEntries(pagination.current);
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io, pagination.current]);
 
   const handleTableChange = (newPagination) => {
     fetchEntries(newPagination.current);

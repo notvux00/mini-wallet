@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
 import { Card, Typography, Table, Tag, Button, Modal, Tabs, Timeline, message, Select, Input, Space } from 'antd';
 import { FileTextOutlined, EyeOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
+import { SocketContext } from '../../context/SocketContext';
 const { TabPane } = Tabs;
 
 export default function TransactionTrail() {
@@ -48,6 +49,7 @@ export default function TransactionTrail() {
   const [filterStatus, setFilterStatus] = useState('');
   const [searchTransRef, setSearchTransRef] = useState('');
   const [searchServiceId, setSearchServiceId] = useState('');
+  const { io } = useContext(SocketContext);
 
   const fetchTrails = async (page = 1, status = filterStatus, transRefId = searchTransRef, serviceId = searchServiceId) => {
     setLoading(true);
@@ -86,6 +88,20 @@ export default function TransactionTrail() {
   useEffect(() => {
     fetchTrails();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', () => {
+        // Có giao dịch mới, cập nhật lại danh sách
+        fetchTrails(pagination.current);
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io, pagination.current]);
 
   const handleTableChange = (newPagination) => {
     fetchTrails(newPagination.current);

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Typography, Table, Tag, Spin, Space } from 'antd';
+import React, { useState, useEffect, useContext } from 'react';
+import { Card, Row, Col, Statistic, Typography, Table, Tag, Spin, Space, message } from 'antd';
 import { 
   UserOutlined, 
   BankOutlined, 
@@ -11,28 +11,47 @@ import {
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
 import axios from '../../utils/axios';
+import { SocketContext } from '../../context/SocketContext';
 
 const { Title, Text } = Typography;
 
 export default function OfficerDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { io } = useContext(SocketContext);
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.post('/api/officer/dashboard/stats');
+      if (response.data && response.data.data) {
+        setStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải thống kê', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await axios.post('/api/officer/dashboard/stats');
-        if (response.data && response.data.data) {
-          setStats(response.data.data);
-        }
-      } catch (error) {
-        console.error('Lỗi khi tải thống kê', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      console.log('Registering socket listener in Officer Dashboard');
+      io.socket.on('transaction_updated', (msg) => {
+        console.log('Socket event received!', msg);
+        fetchStats();
+      });
+    }
+    // Cleanup is handled by SocketContext when unmounting/disconnecting
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    }
+  }, [io]);
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '100px 0' }}><Spin size="large" /></div>;

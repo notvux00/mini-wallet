@@ -82,6 +82,15 @@ module.exports.policies = {
 
   'MockBillerController': {
     '*': true
+  },
+
+  'SocketController': {
+    'officerSubscribe': ['isAuthorized', 'isOfficer'],
+    'customerSubscribe': 'isAuthorized'
+  },
+
+  'TestSocketController': {
+    '*': true
   }
 
 };

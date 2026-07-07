@@ -58,6 +58,11 @@ module.exports.routes = {
   // Dashboard
   'POST /api/officer/dashboard/stats': 'OfficerDashboardController.getStats',
 
+  // Sockets
+  'GET /api/officer/socket/subscribe': 'SocketController.officerSubscribe',
+  'GET /api/customer/socket/subscribe': 'SocketController.customerSubscribe',
+  'GET /api/test-socket': 'TestSocketController.testBroadcast',
+
   // Services
   'POST /api/officer/services/list': 'OfficerServiceController.list',
   'POST /api/officer/services/create': 'OfficerServiceController.create',

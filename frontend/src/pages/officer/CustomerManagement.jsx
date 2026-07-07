@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
 import { Card, Typography, Table, Button, Space, Modal, Form, InputNumber, Input, message, Row, Col, Select } from 'antd';
 const { Option } = Select;
 import { DollarOutlined, PlusOutlined, BankOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
+import { SocketContext } from '../../context/SocketContext';
 
 export default function CustomerManagement() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [filterPhone, setFilterPhone] = useState('');
+  const { io } = useContext(SocketContext);
 
   const formatId = (id) => {
     if (!id) return '';
@@ -49,6 +51,20 @@ export default function CustomerManagement() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', () => {
+        // Cập nhật lại số dư khách hàng khi có biến động
+        fetchCustomers(pagination.current);
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io, pagination.current]);
 
   const handleTableChange = (newPagination) => {
     fetchCustomers(newPagination.current);

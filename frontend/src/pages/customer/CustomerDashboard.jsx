@@ -14,12 +14,15 @@ import {
 import { useNavigate, Navigate } from 'react-router-dom';
 import axios from '../../utils/axios';
 import { AuthContext } from '../../context/AuthContext';
+import { SocketContext } from '../../context/SocketContext';
+import { message } from 'antd';
 
 const { Title, Text } = Typography;
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { io } = useContext(SocketContext);
 
   if (!user) {
     return <Navigate to="/app/login" replace />;
@@ -32,20 +35,37 @@ export default function CustomerDashboard() {
     recentTransactions: []
   });
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const response = await axios.post('/api/customer/dashboard');
-        if (response.data.err === 0 || response.data.err === 200) {
-          setDashboardData(response.data.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch dashboard', error);
+  const fetchDashboard = async () => {
+    try {
+      const response = await axios.post('/api/customer/dashboard');
+      if (response.data.err === 0 || response.data.err === 200) {
+        setDashboardData(response.data.data);
       }
-    };
-    
+    } catch (error) {
+      console.error('Failed to fetch dashboard', error);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboard();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', (msg) => {
+        message.info('Tài khoản của bạn vừa có biến động số dư!');
+        if (msg?.transaction?.status === 'done') {
+          message.success('Có cập nhật giao dịch mới!');
+        }
+        fetchDashboard();
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io]);
 
   const { balance, income: monthlyIncome, expense: monthlyExpense, recentTransactions: history } = dashboardData;
 

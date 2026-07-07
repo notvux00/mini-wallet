@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Form, Input, InputNumber, Button, Modal, Steps, Divider, Result, Row, Col, message, Spin, Select } from 'antd';
 import { MobileOutlined, DollarOutlined, LockOutlined, ArrowRightOutlined, SwapOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../utils/axios';
+import { SocketContext } from '../../context/SocketContext';
 
 const { Title, Text } = Typography;
 
@@ -16,6 +17,7 @@ export default function TransferP2P() {
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [balance, setBalance] = useState(0);
+  const { io } = useContext(SocketContext);
   const navigate = useNavigate();
 
   // Fetch danh sách service P2P và số dư
@@ -50,6 +52,28 @@ export default function TransferP2P() {
 
     init();
   }, []);
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', () => {
+        // Cập nhật lại số dư trên màn hình chuyển tiền nếu có biến động
+        const fetchBalance = async () => {
+          try {
+            const res = await axios.post('/api/customer/dashboard');
+            if (res.data?.data) {
+              setBalance(res.data.data.balance || 0);
+            }
+          } catch {}
+        };
+        fetchBalance();
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+      }
+    };
+  }, [io]);
 
   // BƯỚC 1: Gọi /api/customer/transaction/request → nhận preview
   const handleRequest = async (values) => {

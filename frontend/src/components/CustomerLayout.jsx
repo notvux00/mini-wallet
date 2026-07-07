@@ -7,7 +7,8 @@ import {
   UserOutlined,
   LogoutOutlined,
   WalletFilled,
-  HistoryOutlined
+  HistoryOutlined,
+  MobileOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -27,6 +28,7 @@ export default function CustomerLayout() {
     { key: '/app/home', icon: <HomeOutlined />, label: 'Dashboard' },
     { key: '/app/transfer', icon: <SwapOutlined />, label: 'P2P Transfer' },
     { key: '/app/bill-payment', icon: <FileTextOutlined />, label: 'Bill Payment' },
+    { key: '/app/topup', icon: <MobileOutlined />, label: 'Mobile Topup' },
     { key: '/app/history', icon: <HistoryOutlined />, label: 'History' },
   ];
 

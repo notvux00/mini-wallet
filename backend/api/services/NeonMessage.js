@@ -138,6 +138,11 @@ module.exports = {
               }
             }
           }
+        } else if (fb.rule === 'math') {
+          if (fb.mathOp === 'percent') {
+            const baseValue = Number(TRANSBODY[fb.sourceField] || transData[fb.sourceField]) || 0;
+            TRANSBODY[fb.name] = (baseValue * (Number(fb.percentValue) || 0)) / 100;
+          }
         }
       }
     }
@@ -448,7 +453,8 @@ module.exports = {
     }
     TRANSBODY.FEE = calculatedFee;
     TRANSBODY.DEBITFEE = calculatedFee;
-    TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee;
+    const discountValue = Number(TRANSBODY.DISCOUNT) || 0;
+    TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee - discountValue;
     // ----------------------------------------------------
 
     // 3. Thực thi Kế toán sử dụng MongoDB Replica Set Transaction (ACID)

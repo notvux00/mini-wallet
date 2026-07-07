@@ -44,6 +44,7 @@ module.exports.routes = {
   'POST /api/officer/billers/list': 'OfficerBillerController.list', // Danh sách Biller cho Officer
   'POST /api/customer/billers/list': 'CustomerBillerController.list', // Danh sách Biller cho Customer
   'POST /api/officer/billers/create': 'OfficerBillerController.create', // Tạo mới Biller
+  'POST /api/officer/billers/update': 'OfficerBillerController.update', // Cập nhật Biller
   'POST /api/officer/billers/toggle-status': 'OfficerBillerController.toggleStatus', // Khóa/Mở khóa Biller
   'POST /api/officer/pockets/list': 'OfficerPocketController.list', // Danh sách Pocket
   'POST /api/officer/pockets/toggle-status': 'OfficerPocketController.toggleStatus', // Khóa/Mở khóa Ví
@@ -64,6 +65,7 @@ module.exports.routes = {
   // Mock APIs
   'POST /api/mock/biller/inquiry': 'MockBillerController.inquiry',
   'POST /api/mock/biller/pay': 'MockBillerController.pay',
+  'POST /api/mock/biller/viettel/topup': 'MockBillerController.topup',
 
   /***************************************************************************
   *                                                                          *

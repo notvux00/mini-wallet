@@ -43,7 +43,7 @@ function _findReservedNameConflict(fields) {
  * (Officer khai báo ở Bước 1 Wizard), thay vì hardcode 'RECEIVERPHONE'.
  * Với billerTrans: tương tự, dùng actionParams.billerIdField.
  */
-function _buildFieldBuilder(fields, serviceInfo) {
+function _buildFieldBuilder(fields, serviceInfo, amountField = 'AMOUNT') {
   const fieldBuilder = fields.map((f, i) => ({
     order: i + 1,
     name: f.variableName,
@@ -147,8 +147,24 @@ function _buildFieldBuilder(fields, serviceInfo) {
       variable: `queryPocketByBillerId(${billerVar}).id`,
       datatype: 'string',
       errorCode: SVC_ERR.BILLER_NOT_FOUND,
-      errorMessage: 'Không tìm thấy ví của nhà cung cấp dịch vụ.',
+      errorMessage: 'Không tìm thấy ví của Biller nhận thanh toán.',
     });
+  }
+
+  // (MỚI) Hỗ trợ tạo biến DISCOUNT nếu CMS gửi lên discountRate
+  if (serviceInfo.actionParams && serviceInfo.actionParams.discountRate) {
+    const rate = Number(serviceInfo.actionParams.discountRate);
+    if (rate > 0) {
+      fieldBuilder.push({
+        order: orderIndex++,
+        name: 'DISCOUNT',
+        rule: 'math',
+        source: 'system',
+        mathOp: 'percent',
+        sourceField: amountField,
+        percentValue: rate
+      });
+    }
   }
 
   return fieldBuilder;
@@ -337,10 +353,11 @@ module.exports = {
         );
       }
 
-      const fieldBuilder = _buildFieldBuilder(fields, serviceInfo);
       const glSteps = _buildGlSteps(accountingSteps);
       // Tên biến số tiền lấy từ bút toán đầu tiên (Officer tự đặt: AMOUNT, SOTIEN...)
       const amountField = (glSteps.length > 0 && glSteps[0].amount) ? glSteps[0].amount : 'AMOUNT';
+
+      const fieldBuilder = _buildFieldBuilder(fields, serviceInfo, amountField);
 
       // ACID Transaction: lưu vào 4 bảng cùng lúc, all-or-nothing
       const client = sails.getDatastore().manager.client;
@@ -463,8 +480,9 @@ module.exports = {
       }
       // ───────────────────────────────────────────────────────────────────────
 
-      const fieldBuilder = _buildFieldBuilder(fields, serviceInfo);
       const glSteps = _buildGlSteps(accountingSteps);
+      const amountField = (glSteps.length > 0 && glSteps[0].amount) ? glSteps[0].amount : 'AMOUNT';
+      const fieldBuilder = _buildFieldBuilder(fields, serviceInfo, amountField);
 
       const client = sails.getDatastore().manager.client;
       const db = client.db();

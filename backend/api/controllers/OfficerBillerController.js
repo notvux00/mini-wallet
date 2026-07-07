@@ -36,8 +36,11 @@ module.exports = {
 
   create: async function(req, res) {
     try {
-        const {code, name, inquiryUrl, paymentUrl} = req.body;
-
+        const {
+          code, name, inquiryUrl, paymentUrl,
+          inqReqKeyCustomer, inqReqKeyBiller, inquiryResMappingAmount, inquiryResMappingBillRef,
+          payReqKeyCustomer, payReqKeyAmount, payReqKeyBillRef, payResMappingStatus, payResMappingSuccessValue
+        } = req.body;
         // 1. Kiểm tra mã Biller đã tồn tại chưa
         const existingBiller = await Biller.findOne({ code: code });
         if (existingBiller) {
@@ -52,14 +55,15 @@ module.exports = {
             checksum: 'TEMP'
         }).fetch();
 
-        // 3. Tạo record Biller, móc ID của pocket vừa tạo vào
         const newBiller = await Biller.create({
             code: code,
             name: name,
             inquiryUrl: inquiryUrl,
             paymentUrl: paymentUrl,
             pocket: newPocket.id,
-            status: 'active'
+            status: 'active',
+            inqReqKeyCustomer, inqReqKeyBiller, inquiryResMappingAmount, inquiryResMappingBillRef,
+            payReqKeyCustomer, payReqKeyAmount, payReqKeyBillRef, payResMappingStatus, payResMappingSuccessValue
         }).fetch();
 
         // 4. Cập nhật lại Pocket bao gồm user và checksum
@@ -99,6 +103,32 @@ module.exports = {
         return res.ok({ status: newStatus }, `Đã đổi trạng thái thành ${newStatus.toUpperCase()}`);
     } catch (error) {
         sails.log.error('Lỗi OfficerBillerController.toggleStatus:', error);
+        return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
+    }
+  },
+
+  update: async function(req, res) {
+    try {
+        const {
+          id, name, inquiryUrl, paymentUrl,
+          inqReqKeyCustomer, inqReqKeyBiller, inquiryResMappingAmount, inquiryResMappingBillRef,
+          payReqKeyCustomer, payReqKeyAmount, payReqKeyBillRef, payResMappingStatus, payResMappingSuccessValue
+        } = req.body;
+
+        const biller = await Biller.findOne({ id: id });
+        if (!biller) {
+            return res.error(respCode.NOT_FOUND, 'Không tìm thấy Biller này!');
+        }
+
+        const updatedBiller = await Biller.updateOne({ id: id }).set({
+            name, inquiryUrl, paymentUrl,
+            inqReqKeyCustomer, inqReqKeyBiller, inquiryResMappingAmount, inquiryResMappingBillRef,
+            payReqKeyCustomer, payReqKeyAmount, payReqKeyBillRef, payResMappingStatus, payResMappingSuccessValue
+        });
+
+        return res.ok(updatedBiller, 'Cập nhật Biller thành công!');
+    } catch (error) {
+        sails.log.error('Lỗi OfficerBillerController.update:', error);
         return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
     }
   }

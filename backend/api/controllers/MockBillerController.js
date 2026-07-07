@@ -75,6 +75,43 @@ module.exports = {
     } catch (error) {
       return res.status(500).json({ status: 'error', message: error.message });
     }
+  },
+
+  /**
+   * Giả lập API nạp tiền điện thoại (Viettel)
+   * Nhận: phoneNumber, amount, transRefId
+   */
+  topup: async function (req, res) {
+    try {
+      const { phoneNumber, customerCode, phone, amount, transRefId, billRef, transRef } = req.body;
+
+      const p = phoneNumber || customerCode || phone;
+      const t = transRefId || billRef || transRef;
+
+      if (!p || !amount || !t) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Missing required fields for topup'
+        });
+      }
+
+      // Giả lập xử lý nạp thẻ mất 1 giây
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      return res.json({
+        status: 'success',
+        id: '101', // Mã này khớp với "Giá trị thành công" cấu hình trên CMS
+        data: {
+          transactionId: `VIETTEL_${Date.now()}`,
+          phone: phoneNumber,
+          amountTopup: amount
+        },
+        message: 'Nạp thẻ thành công'
+      });
+
+    } catch (error) {
+      return res.status(500).json({ status: 'error', message: error.message });
+    }
   }
 
 };

@@ -19,6 +19,7 @@ import TransferP2P from './pages/customer/TransferP2P';
 import BillPayment from './pages/customer/BillPayment';
 import CustomerHistory from './pages/customer/CustomerHistory';
 import ComingSoon from './pages/customer/ComingSoon';
+import MobileTopup from './pages/customer/MobileTopup';
 import './App.css';
 import './index.css';
 
@@ -52,6 +53,7 @@ function App() {
             <Route path="home" element={<CustomerDashboard />} />
             <Route path="transfer" element={<TransferP2P />} />
             <Route path="bill-payment" element={<BillPayment />} />
+            <Route path="topup" element={<MobileTopup />} />
             <Route path="history" element={<CustomerHistory />} />
             <Route path="coming-soon" element={<ComingSoon />} />
           </Route>

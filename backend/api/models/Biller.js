@@ -13,7 +13,7 @@ module.exports = {
     },
     inquiryUrl: {
       type: 'string',
-      required: true,
+      allowNull: true,
     },
     paymentUrl: {
       type: 'string',

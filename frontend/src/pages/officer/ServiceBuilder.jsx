@@ -443,6 +443,19 @@ export default function ServiceBuilder() {
                     </Select>
                   </Col>
                 </Row>
+                <Row gutter={24} style={{ marginTop: 16 }}>
+                  <Col span={12}>
+                    <Text strong>Tỉ lệ Chiết khấu / Hoàn tiền (%):</Text>
+                    <Input 
+                      type="number"
+                      style={{ width: '100%', marginTop: 8 }} 
+                      size="large"
+                      placeholder="Nhập phần trăm (VD: 2), để trống nếu không có"
+                      value={basicInfo.actionParams?.discountRate || ''}
+                      onChange={(e) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, discountRate: e.target.value } })}
+                    />
+                  </Col>
+                </Row>
               </Card>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
@@ -503,6 +516,9 @@ export default function ServiceBuilder() {
                     ))}
                     {basicInfo.action === 'billerTrans' && !inputFields.some(f => f.variableName === 'AMOUNT') && (
                       <Option value="AMOUNT">Số tiền Hóa đơn (Do Biller trả về)</Option>
+                    )}
+                    {basicInfo.actionParams?.discountRate > 0 && (
+                      <Option value="DISCOUNT">Chiết khấu (Tính ngầm)</Option>
                     )}
                     <Option value="FEE">Phí dịch vụ (Tính ở B1)</Option>
                   </Select>

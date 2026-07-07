@@ -19,8 +19,13 @@ export default function MobileTopup() {
   const [loadingServices, setLoadingServices] = useState(true);
   const [selectedAmount, setSelectedAmount] = useState(null);
   const navigate = useNavigate();
+  const selectedServiceId = Form.useWatch('serviceId', form);
+  const selectedBillerCode = Form.useWatch('billerCode', form);
 
   const predefinedAmounts = [10000, 20000, 50000, 100000, 200000, 500000];
+
+  const currentService = services.find(s => s.id === selectedServiceId) || services[0];
+  const discountPercent = currentService ? (Number(currentService.discount) || 0) : 0;
 
   useEffect(() => {
     const fetchBillersAndServices = async () => {
@@ -31,7 +36,8 @@ export default function MobileTopup() {
         ]);
 
         if (billerRes.data?.data) {
-          setBillers(billerRes.data.data);
+          const list = billerRes.data.data.filter(b => b.code.includes('TOPUP'));
+          setBillers(list);
         }
 
         if (serviceRes.data?.data) {
@@ -207,10 +213,7 @@ export default function MobileTopup() {
                 rules={[{ required: true, message: 'Vui lòng chọn nhà mạng' }]}
               >
                 <Select size="large" placeholder="Chọn nhà mạng (VD: Viettel)">
-                  {billers.filter(b => b.code.includes('TOPUP')).map(b => (
-                    <Option key={b.code} value={b.code}>{b.name}</Option>
-                  ))}
-                  {billers.filter(b => !b.code.includes('TOPUP')).map(b => (
+                  {billers.map(b => (
                     <Option key={b.code} value={b.code}>{b.name}</Option>
                   ))}
                 </Select>
@@ -232,9 +235,14 @@ export default function MobileTopup() {
                         size="large"
                         type={selectedAmount === amt ? 'primary' : 'default'}
                         onClick={() => handleSelectAmount(amt)}
-                        style={{ height: 60, fontWeight: 600 }}
+                        style={{ height: (discountPercent > 0 && selectedBillerCode) ? 65 : 60, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        {(amt / 1000).toLocaleString('vi-VN')}K
+                        <span style={{ fontWeight: 600, fontSize: 16 }}>{(amt / 1000).toLocaleString('vi-VN')}K</span>
+                        {(discountPercent > 0 && selectedBillerCode) && (
+                          <span style={{ fontSize: 12, color: selectedAmount === amt ? '#fff' : '#10b981', marginTop: 2, fontWeight: 'normal' }}>
+                            Hoàn {(amt * discountPercent / 100).toLocaleString('vi-VN')}đ
+                          </span>
+                        )}
                       </Button>
                     </Col>
                   ))}

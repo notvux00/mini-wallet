@@ -27,11 +27,12 @@ export default function BillPayment() {
         ]);
 
         if (billerRes.data?.data) {
-          setBillers(billerRes.data.data);
+          const list = billerRes.data.data.filter(b => !b.code.includes('TOPUP'));
+          setBillers(list);
         }
 
         if (serviceRes.data?.data) {
-          const list = serviceRes.data.data;
+          const list = serviceRes.data.data.filter(s => !s.code.includes('TOPUP'));
           setServices(list);
           if (list.length === 1) {
             form.setFieldsValue({ serviceId: list[0].id });

@@ -43,6 +43,7 @@ module.exports = {
           amountField: amountField,
           actionParams: s.actionParams || {},
           receiverPhoneField: s.actionParams?.receiverPhoneField || 'RECEIVERPHONE',
+          discount: s.fieldBuilder?.find(f => f.name === 'DISCOUNT' && f.rule === 'math' && f.mathOp === 'percent')?.percentValue || 0,
         };
       });
 

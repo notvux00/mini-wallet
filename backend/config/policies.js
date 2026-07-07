@@ -72,6 +72,10 @@ module.exports.policies = {
     '*': ['isAuthorized', 'isOfficer']
   },
 
+  'OfficerDashboardController': {
+    '*': ['isAuthorized', 'isOfficer']
+  },
+
   'OfficerPocketEntryController': { 
     '*': ['isAuthorized', 'isOfficer'] 
   },

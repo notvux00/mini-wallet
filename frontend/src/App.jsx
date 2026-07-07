@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import OfficerLayout from './components/OfficerLayout';
 import OfficerLogin from './pages/officer/OfficerLogin';
+import OfficerDashboard from './pages/officer/OfficerDashboard';
 import ServiceManagement from './pages/officer/ServiceManagement';
 import ServiceBuilder from './pages/officer/ServiceBuilder';
 import PocketManagement from './pages/officer/PocketManagement';
@@ -32,8 +33,9 @@ function App() {
           
           {/* Officer Routes */}
           <Route path="/officer" element={<OfficerLayout />}>
-            <Route index element={<Navigate to="/officer/login" replace />} />
+            <Route index element={<Navigate to="/officer/dashboard" replace />} />
             <Route path="login" element={<OfficerLogin />} />
+            <Route path="dashboard" element={<OfficerDashboard />} />
             <Route path="services" element={<ServiceManagement />} />
             <Route path="service-builder" element={<ServiceBuilder />} />
             <Route path="service-builder/:id" element={<ServiceBuilder />} />

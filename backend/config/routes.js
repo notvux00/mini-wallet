@@ -55,7 +55,10 @@ module.exports.routes = {
   'POST /api/officer/transactions/execute': 'OfficerTransactionController.execute', // Thực hiện giao dịch (mọi loại)
   'POST /api/officer/transactions/verify': 'OfficerTransactionController.verify',   // Xác thực PIN (nếu cần)
   
-  // APIs cho Service Configurator (Luồng Cấu Hình Động)
+  // Dashboard
+  'POST /api/officer/dashboard/stats': 'OfficerDashboardController.getStats',
+
+  // Services
   'POST /api/officer/services/list': 'OfficerServiceController.list',
   'POST /api/officer/services/create': 'OfficerServiceController.create',
   'POST /api/officer/services/detail': 'OfficerServiceController.detail',

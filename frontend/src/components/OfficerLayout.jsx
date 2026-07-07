@@ -30,6 +30,7 @@ export default function OfficerLayout() {
   const isLoginPage = location.pathname === '/officer/login';
 
   const menuItems = [
+    { key: '/officer/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/officer/services', icon: <AppstoreOutlined />, label: 'Services' },
     { key: '/officer/pockets', icon: <WalletOutlined />, label: 'Pockets' },
     { key: '/officer/billers', icon: <BankOutlined />, label: 'Billers' },

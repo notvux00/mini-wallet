@@ -27,7 +27,7 @@ export default function OfficerLogin() {
       const { token, user } = response.data.data;
       login(user, token);
       message.success('Đăng nhập thành công!');
-      navigate('/officer/services');
+      navigate('/officer/dashboard');
     } catch (error) {
       message.error(error.response?.data?.message || 'Lỗi đăng nhập');
     } finally {

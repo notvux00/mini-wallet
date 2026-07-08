@@ -24,7 +24,7 @@ export default function TransactionTrail() {
 
   const columns = [
     { title: 'Trans Ref ID', dataIndex: 'id', key: 'id', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Service ID', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text}</Tag> },
+    { title: 'Service Code', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text}</Tag> },
     { title: 'Step', dataIndex: 'transStep', key: 'transStep', align: 'center', render: text => <Tag color="purple">Step {text}</Tag> },
     { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => {
       let color = 'default';
@@ -137,7 +137,7 @@ export default function TransactionTrail() {
             size="large"
           />
           <Input.Search 
-            placeholder="Service ID..." 
+            placeholder="Service Code..." 
             allowClear
             onSearch={handleSearchServiceId} 
             style={{ width: 180 }} 

@@ -20,6 +20,8 @@ module.exports = {
         limit: limit
       });
 
+
+
       return res.ok({ items, total, page, limit }, 'Lấy danh sách Ví điện tử thành công!');
     } catch (error) {
       sails.log.error('Lỗi OfficerPocketController.list:', error);
@@ -29,11 +31,11 @@ module.exports = {
 
   create: async function(req, res) {
     try {
-        const { client, currency, balance } = req.body;
+        const { client, currency, balance, name } = req.body;
 
-        // 1. Chỉ cho phép tạo loại ví system hoặc bank qua giao diện này
-        if (client !== 'system' && client !=='bank') {
-            return res.error(respCode.BAD_REQUEST, 'Chỉ được phép tạo ví Hệ thống hoặc Ngân hàng!');
+        // 1. Chỉ cho phép tạo loại ví system qua giao diện này (Ví bank sẽ được tạo tự động khi thêm Ngân hàng)
+        if (client !== 'system') {
+            return res.error(respCode.BAD_REQUEST, 'Chỉ được phép tạo ví Hệ thống (Ví Ngân hàng sẽ tự sinh khi bạn tạo Ngân hàng)!');
         }
 
         // 2. Tính checksum bảo mật (vì ví này không có User, ta dùng chính chữ 'system' hoặc 'bank' làm mã định danh phụ)
@@ -41,6 +43,7 @@ module.exports = {
 
         // 3. Tạo ví trong database
         const newPocket = await Pocket.create({
+            name: name,
             client: client,
             currency: currency,
             balance: balance,

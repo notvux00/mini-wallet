@@ -13,7 +13,10 @@ import {
   WalletFilled,
   DashboardOutlined,
   DollarOutlined,
-  SwapOutlined
+  SwapOutlined,
+  ShopOutlined,
+  TeamOutlined,
+  AuditOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -33,10 +36,11 @@ export default function OfficerLayout() {
     { key: '/officer/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/officer/services', icon: <AppstoreOutlined />, label: 'Services' },
     { key: '/officer/pockets', icon: <WalletOutlined />, label: 'Pockets' },
-    { key: '/officer/billers', icon: <BankOutlined />, label: 'Billers' },
-    { key: '/officer/customers', icon: <UserSwitchOutlined />, label: 'Customers' },
+    { key: '/officer/billers', icon: <ShopOutlined />, label: 'Billers' },
+    { key: '/officer/banks', icon: <BankOutlined />, label: 'Banks' },
+    { key: '/officer/customers', icon: <TeamOutlined />, label: 'Customers' },
     { key: '/officer/pocket-entries', icon: <SwapOutlined />, label: 'Pocket Entries' },
-    { key: '/officer/trail', icon: <HistoryOutlined />, label: 'Transaction Trail' },
+    { key: '/officer/trail', icon: <AuditOutlined />, label: 'Transaction Trail' },
     { key: '/officer/history', icon: <FileDoneOutlined />, label: 'History' },
   ];
 

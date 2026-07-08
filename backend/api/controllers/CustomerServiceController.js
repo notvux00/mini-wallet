@@ -41,6 +41,7 @@ module.exports = {
           authMethod: s.auth && s.auth.method ? s.auth.method : 'NONE',
           fee: s.fee,
           amountField: amountField,
+          bankLinkField: def && def.bankLinkMapping ? def.bankLinkMapping : 'BANK_LINK_ID',
           actionParams: s.actionParams || {},
           receiverPhoneField: s.actionParams?.receiverPhoneField || 'RECEIVERPHONE',
           discount: s.fieldBuilder?.find(f => f.name === 'DISCOUNT' && f.rule === 'math' && f.mathOp === 'percent')?.percentValue || 0,

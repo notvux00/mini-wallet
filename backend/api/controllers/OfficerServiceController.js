@@ -118,6 +118,51 @@ function _buildFieldBuilder(fields, serviceInfo, amountField = 'AMOUNT') {
       errorMessage: 'Không tìm thấy ví của khách hàng được nạp tiền.',
     });
 
+  } else if (serviceInfo.action === 'bankDeposit') {
+    const linkVar = serviceInfo.actionParams && serviceInfo.actionParams.bankLinkField
+      ? serviceInfo.actionParams.bankLinkField
+      : 'BANK_LINK_ID';
+
+    const senderIdx = fieldBuilder.findIndex(f => f.name === 'SENDERID');
+    if (senderIdx !== -1) {
+      fieldBuilder[senderIdx] = {
+        ...fieldBuilder[senderIdx],
+        rule: 'query',
+        source: 'system',
+        variable: `queryPocketByBankLinkId(${linkVar}).id`,
+        errorCode: SVC_ERR.SENDER_NOT_FOUND,
+        errorMessage: 'Ví Ngân hàng nguồn không hợp lệ.',
+      };
+    }
+
+    fieldBuilder.push({
+      order: orderIndex++,
+      name: 'RECEIVERID',
+      rule: 'query',
+      source: 'system',
+      variable: 'queryPocketByUserId(USERID).id',
+      datatype: 'string',
+      errorCode: SVC_ERR.RECEIVER_NOT_FOUND,
+      errorMessage: 'Không tìm thấy ví của bạn để nhận tiền.',
+    });
+
+  } else if (serviceInfo.action === 'bankWithdraw') {
+    // SENDERID: mặc định là queryPocketByUserId(USERID).id (đã thêm sẵn ở dòng 70)
+    const linkVar = serviceInfo.actionParams && serviceInfo.actionParams.bankLinkField
+      ? serviceInfo.actionParams.bankLinkField
+      : 'BANK_LINK_ID';
+
+    fieldBuilder.push({
+      order: orderIndex++,
+      name: 'RECEIVERID',
+      rule: 'query',
+      source: 'system',
+      variable: `queryPocketByBankLinkId(${linkVar}).id`,
+      datatype: 'string',
+      errorCode: SVC_ERR.RECEIVER_NOT_FOUND,
+      errorMessage: 'Không tìm thấy ví Ngân hàng để chuyển tiền về.',
+    });
+
   } else if (!serviceInfo.action || serviceInfo.action === 'none') {
     // P2P: tra ví theo SĐT. Officer phải khai báo actionParams.receiverPhoneField
     // là tên biến họ dùng cho SĐT người nhận (VD: 'RECEIVERPHONE', 'PHONE', ...).

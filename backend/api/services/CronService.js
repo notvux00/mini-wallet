@@ -7,7 +7,7 @@ module.exports = {
     // Job 1: Dọn dẹp Ví bị kẹt & TransactionTrail bị treo (Mỗi 5 phút)
     cron.schedule('*/5 * * * *', async () => {
       try {
-        sails.log.info('[Cron] Bắt đầu chạy CleanupCron (Dọn dẹp ví kẹt & Trail pending)...');
+
         const now = Date.now();
         const fiveMinsAgo = now - 5 * 60 * 1000;
         const fifteenMinsAgo = now - 15 * 60 * 1000;

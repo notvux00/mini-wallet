@@ -58,10 +58,15 @@ export default function CustomerManagement() {
         // Cập nhật lại số dư khách hàng khi có biến động
         fetchCustomers(pagination.current);
       });
+      io.socket.on('customer_created', () => {
+        // Có người đăng ký mới -> load lại
+        fetchCustomers(1); // Load lại trang đầu
+      });
     }
     return () => {
       if (io && io.socket) {
         io.socket.off('transaction_updated');
+        io.socket.off('customer_created');
       }
     };
   }, [io, pagination.current]);
@@ -88,9 +93,9 @@ export default function CustomerManagement() {
     // Fetch bank pockets and cash-in service config
     const fetchConfigs = async () => {
       try {
-        const pocketRes = await axios.post('/api/officer/pockets/list', { client: 'bank' });
-        if (pocketRes.data?.data?.items) {
-          setBankPockets(pocketRes.data.data.items.filter(p => p.status === 'active'));
+        const bankRes = await axios.post('/api/officer/banks/list', {});
+        if (bankRes.data?.data?.items) {
+          setBankPockets(bankRes.data.data.items);
         }
 
         const serviceRes = await axios.post('/api/officer/services/list', {});
@@ -232,13 +237,13 @@ export default function CustomerManagement() {
               name="bankPocketId" 
               rules={[{ required: true, message: 'Vui lòng chọn ví ngân hàng!' }]}
             >
-              <Select size="large" placeholder="-- Chọn ví Ngân hàng --">
-                {bankPockets.map(p => (
-                  <Option key={p.id} value={p.id}>
+              <Select size="large" placeholder="-- Chọn Ngân hàng --">
+                {bankPockets.map(bank => bank.pocket ? (
+                  <Option key={bank.pocket.id} value={bank.pocket.id}>
                     <BankOutlined style={{ marginRight: 8, color: '#0ea5e9' }} />
-                    {p.id.slice(-6)} - {p.currency} (Dư: {p.balance.toLocaleString('vi-VN')})
+                    {bank.name} - {bank.code} (Dư: {bank.pocket.balance.toLocaleString('vi-VN')})
                   </Option>
-                ))}
+                ) : null)}
               </Select>
             </Form.Item>
 

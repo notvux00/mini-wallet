@@ -15,7 +15,7 @@ export default function TransactionHistory() {
 
   const columns = [
     { title: 'Trans Ref ID', dataIndex: 'transRefId', key: 'transRefId', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Service ID', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text || 'N/A'}</Tag> },
+    { title: 'Service Code', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text || 'N/A'}</Tag> },
     { title: 'Sender Pocket', dataIndex: 'sender', key: 'sender', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
     { title: 'Receiver Pocket', dataIndex: 'receiver', key: 'receiver', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
     { title: 'Amount', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong>{(text ?? 0).toLocaleString()}</Text> },
@@ -115,7 +115,7 @@ export default function TransactionHistory() {
             size="large"
           />
           <Input.Search 
-            placeholder="Service ID..." 
+            placeholder="Service Code..." 
             allowClear
             onSearch={handleSearchServiceId} 
             style={{ width: 180 }} 

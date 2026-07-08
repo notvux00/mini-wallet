@@ -32,11 +32,20 @@ module.exports.policies = {
     'login': true,
   },
 
+  'OfficerPocketController': {
+    '*': ['isAuthorized', 'isOfficer'],
+    'list': true
+  },
+
   'CustomerController': {
     '*': 'isAuthorized',
   },
 
   'CustomerBillerController': {
+    '*': 'isAuthorized',
+  },
+
+  'CustomerBankController': {
     '*': 'isAuthorized',
   },
 
@@ -58,6 +67,10 @@ module.exports.policies = {
 
   'OfficerPocketController': { 
     '*': ['isAuthorized', 'isOfficer'] 
+  },
+
+  'OfficerBankController': {
+    '*': ['isAuthorized', 'isOfficer']
   },
 
   'OfficerTransactionController': { 

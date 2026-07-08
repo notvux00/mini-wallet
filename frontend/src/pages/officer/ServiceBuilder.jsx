@@ -152,6 +152,12 @@ export default function ServiceBuilder() {
         finalBasicInfo.authMethod = 'NONE'; // Cash-in không cần PIN
       }
       
+      // Bank Topup / Withdraw: fallback bankLinkField
+      if (finalBasicInfo.action === 'bankDeposit' || finalBasicInfo.action === 'bankWithdraw') {
+        if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
+        if (!finalBasicInfo.actionParams.bankLinkField) finalBasicInfo.actionParams.bankLinkField = 'BANK_LINK_ID';
+      }
+      
       const payload = {
         serviceInfo: finalBasicInfo,
         fields: inputFields,
@@ -223,7 +229,9 @@ export default function ServiceBuilder() {
                   <Select size="large">
                     <Option value="none">Chuyển tiền nội bộ (P2P)</Option>
                     <Option value="billerTrans">Thanh toán Hóa đơn (Biller)</Option>
-                    <Option value="cashIn">Nạp tiền (Cash-in)</Option>
+                    <Option value="cashIn">Nạp tiền tại quầy (OTC Cash-in)</Option>
+                    <Option value="bankDeposit">Nạp tiền từ thẻ Ngân hàng (Deposit)</Option>
+                    <Option value="bankWithdraw">Rút tiền về thẻ Ngân hàng (Withdraw)</Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -312,33 +320,6 @@ export default function ServiceBuilder() {
               <Card type="inner" title="Cấu hình Nạp tiền (Cash-in)" style={{ borderColor: '#10b981' }}>
                 <Space direction="vertical" style={{ width: '100%' }} size="middle">
 
-                  {/* Ánh xạ biến Ví Bank nguồn (chọn lúc giao dịch) */}
-                  <div>
-                    <Text strong>Tên biến chứa Mã Ví Bank nguồn (SENDERID):</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      Lúc giao dịch, Officer sẽ chọn ví Bank nào để nạp — giá trị đó được map vào biến này.
-                      Chọn đúng field chứa Pocket ID của ví Bank đã định nghĩa ở Bước 2.
-                    </Text>
-                    <Select
-                      style={{ width: '100%', marginTop: 8 }}
-                      size="large"
-                      placeholder="Chọn biến chứa Pocket ID của ví Bank..."
-                      value={basicInfo.actionParams?.bankPocketField || undefined}
-                      onChange={(val) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, bankPocketField: val } })}
-                    >
-                      {inputFields.map(f => (
-                        <Option key={f.variableName} value={f.variableName}>
-                          {f.variableName} {f.label ? `(${f.label})` : ''}
-                        </Option>
-                      ))}
-                    </Select>
-                    {!basicInfo.actionParams?.bankPocketField && inputFields.length > 0 && (
-                      <Text type="warning" style={{ fontSize: 12 }}>
-                        ⚠️ Chưa chọn — engine sẽ mặc định tìm biến tên "BANKID"
-                      </Text>
-                    )}
-                  </div>
 
                   {/* Chọn biến SĐT khách hàng */}
                   <div>
@@ -367,11 +348,6 @@ export default function ServiceBuilder() {
                     )}
                   </div>
 
-                  <div style={{ padding: '8px 12px', background: '#ecfdf5', borderRadius: 6, border: '1px solid #6ee7b7' }}>
-                    <Text style={{ color: '#065f46', fontSize: 12 }}>
-                      ℹ️ Auth tự động được đặt là <strong>NONE</strong> — Cash-in do Officer thực hiện, không cần PIN khách hàng.
-                    </Text>
-                  </div>
 
                 </Space>
               </Card>
@@ -458,6 +434,38 @@ export default function ServiceBuilder() {
                 </Row>
               </Card>
             )}
+
+            {/* Bank Topup / Withdraw: Officer ánh xạ biến chứa Bank Link ID */}
+            {(basicInfo.action === 'bankDeposit' || basicInfo.action === 'bankWithdraw') && (
+              <Card type="inner" title="Ánh xạ Thẻ Ngân hàng (Dành riêng cho Nạp/Rút)" style={{ borderColor: '#f59e0b' }}>
+                <Row gutter={24}>
+                  <Col span={24}>
+                    <Text strong>Tên biến chứa Mã Thẻ liên kết (Bank Link ID):</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Engine sẽ dùng mã thẻ này để tra cứu chính xác Ví Ngân hàng nào đang tham gia giao dịch.
+                    </Text>
+                    <Select 
+                      style={{ width: '100%', marginTop: 8 }} 
+                      size="large"
+                      placeholder="Chọn biến chứa Mã thẻ (VD: BANK_LINK_ID)"
+                      value={basicInfo.actionParams?.bankLinkField || undefined}
+                      onChange={(val) => setBasicInfo({ ...basicInfo, actionParams: { ...basicInfo.actionParams, bankLinkField: val } })}
+                    >
+                      {inputFields.map(f => (
+                        <Option key={f.variableName} value={f.variableName}>{f.variableName} ({f.label})</Option>
+                      ))}
+                    </Select>
+                    {!basicInfo.actionParams?.bankLinkField && inputFields.length > 0 && (
+                      <Text type="warning" style={{ fontSize: 12 }}>
+                        ⚠️ Chưa chọn — engine sẽ mặc định tìm biến tên "BANK_LINK_ID"
+                      </Text>
+                    )}
+                  </Col>
+                </Row>
+              </Card>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
               <div>
                 <Text strong style={{ fontSize: 16 }}>Khác biệt Người gửi & Người nhận</Text>
@@ -533,9 +541,15 @@ export default function ServiceBuilder() {
                   <Text strong>Trừ từ Ví (Nợ):</Text><br/>
                   <Select placeholder="Chọn ví trừ tiền" value={step.from} onChange={val => updateGlStep(step.id, 'from', val)} style={{ width: '100%', marginTop: 8 }}>
                     <Option value="SENDER">
-                      {basicInfo.action === 'cashIn' ? 'Ví Ngân Hàng' : 'Ví Khách Hàng Gửi'}
+                      {basicInfo.action === 'cashIn' || basicInfo.action === 'bankDeposit' 
+                        ? 'Ví Ngân Hàng' 
+                        : 'Ví Khách Hàng Gửi'}
                     </Option>
-                    <Option value="RECEIVER">Ví Khách Hàng / Biller Nhận</Option>
+                    <Option value="RECEIVER">
+                      {basicInfo.action === 'bankWithdraw' 
+                        ? 'Ví Ngân Hàng' 
+                        : 'Ví Khách Hàng / Biller Nhận'}
+                    </Option>
                     {systemPockets.map(p => (
                       <Option key={p.id} value={p.id}>Ví Hệ Thống: {p.name || p.id?.slice(-6)}</Option>
                     ))}
@@ -551,9 +565,15 @@ export default function ServiceBuilder() {
                   <Text strong>Cộng vào Ví (Có):</Text><br/>
                   <Select placeholder="Chọn ví cộng tiền" value={step.to} onChange={val => updateGlStep(step.id, 'to', val)} style={{ width: '100%', marginTop: 8 }}>
                     <Option value="SENDER">
-                      {basicInfo.action === 'cashIn' ? 'Ví Ngân Hàng' : 'Ví Khách Hàng Gửi'}
+                      {basicInfo.action === 'cashIn' || basicInfo.action === 'bankDeposit' 
+                        ? 'Ví Ngân Hàng' 
+                        : 'Ví Khách Hàng Gửi'}
                     </Option>
-                    <Option value="RECEIVER">Ví Khách Hàng / Biller Nhận</Option>
+                    <Option value="RECEIVER">
+                      {basicInfo.action === 'bankWithdraw' 
+                        ? 'Ví Ngân Hàng' 
+                        : 'Ví Khách Hàng / Biller Nhận'}
+                    </Option>
                     {systemPockets.map(p => (
                       <Option key={p.id} value={p.id}>Ví Hệ Thống: {p.name || p.id?.slice(-6)}</Option>
                     ))}

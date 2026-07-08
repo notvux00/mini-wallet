@@ -138,6 +138,23 @@ module.exports = {
               }
             }
           }
+
+          // variable = 'queryPocketByBankLinkId(BANK_LINK_ID).id'
+          const matchBankLink = fb.variable.match(/queryPocketByBankLinkId\((.*?)\)/);
+          if (matchBankLink && matchBankLink[1]) {
+            const linkVar = matchBankLink[1];
+            const linkId = transData[linkVar];
+            if (linkId) {
+              // Phải kiểm tra đúng thẻ của user này và trạng thái linked để chống hack
+              const link = await BankLink.findOne({ id: linkId, customer: userId, status: 'linked' });
+              if (link) {
+                const bank = await Bank.findOne({ id: link.bank });
+                if (bank && bank.pocket) {
+                  TRANSBODY[fb.name] = bank.pocket;
+                }
+              }
+            }
+          }
         } else if (fb.rule === 'math') {
           if (fb.mathOp === 'percent') {
             const baseValue = Number(TRANSBODY[fb.sourceField] || transData[fb.sourceField]) || 0;
@@ -502,9 +519,26 @@ module.exports = {
 
           const debitObjectId = new (require('mongodb').ObjectId)(debitPocketId);
 
+          // Lấy thông tin ví Nợ để kiểm tra xem có cho phép âm tiền không (Ví Hệ thống / Ngân hàng được phép âm)
+          const debitPocketInfo = await pocketCollection.findOne(
+            { _id: { $in: [debitPocketId, debitObjectId] } },
+            { session }
+          );
+
+          if (!debitPocketInfo) {
+            throw new Error(`SYS_ERR.POCKET_NOT_FOUND: Không tìm thấy ví Nợ ${debitPocketId}`);
+          }
+
+          const allowNegative = ['system', 'bank'].includes(debitPocketInfo.client);
+          
+          const query = { _id: debitPocketInfo._id };
+          if (!allowNegative) {
+            query.balance = { $gte: stepAmountValue };
+          }
+
           // MongoDB driver v6+: findOneAndUpdate trả về document trực tiếp
           const updatedDebitPocket = await pocketCollection.findOneAndUpdate(
-            { _id: { $in: [debitPocketId, debitObjectId] }, balance: { $gte: stepAmountValue } },
+            query,
             { $inc: { balance: -stepAmountValue } },
             { session, returnDocument: 'after' }
           );

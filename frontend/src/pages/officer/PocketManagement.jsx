@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
-import { Card, Typography, Table, Tag, Button, Modal, Form, Select, InputNumber, message, Space, Popconfirm } from 'antd';
+import { Card, Typography, Table, Tag, Button, Modal, Form, Select, Input, InputNumber, message, Space, Popconfirm } from 'antd';
 import { PlusOutlined, WalletOutlined, SafetyCertificateFilled, WarningFilled, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -16,6 +16,7 @@ export default function PocketManagement() {
 
   const columns = [
     { title: 'Pocket ID', dataIndex: 'id', key: 'id', align: 'center', width: '15%', render: text => <Text strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Name', dataIndex: 'name', key: 'name', align: 'center', width: '15%', render: text => text ? <Text strong>{text}</Text> : <Text type="secondary" italic>No Name</Text> },
     { title: 'User Ref', dataIndex: 'user', key: 'user', align: 'center', width: '15%', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>NULL</Text> },
     { title: 'Client', dataIndex: 'client', key: 'client', align: 'center', width: '10%', render: text => <Tag color={text === 'system' || text === 'bank' ? 'purple' : 'blue'}>{text.toUpperCase()}</Tag> },
     { title: 'Currency', dataIndex: 'currency', key: 'currency', align: 'center', width: '10%' },
@@ -61,6 +62,7 @@ export default function PocketManagement() {
       const formattedData = items.map(item => ({
         key: item.id,
         id: item.id,
+        name: item.name,
         user: item.user,
         client: item.client,
         currency: item.currency,
@@ -89,10 +91,15 @@ export default function PocketManagement() {
         // Cập nhật lại số dư ví khi có giao dịch
         fetchPockets(pagination.current);
       });
+      io.socket.on('customer_created', () => {
+        // Có ví khách hàng mới -> load lại trang đầu
+        fetchPockets(1);
+      });
     }
     return () => {
       if (io && io.socket) {
         io.socket.off('transaction_updated');
+        io.socket.off('customer_created');
       }
     };
   }, [io, pagination.current]);
@@ -162,7 +169,7 @@ export default function PocketManagement() {
           <Select.Option value="system">Ví hệ thống trung tâm (System)</Select.Option>
           <Select.Option value="bank">Ví liên kết ngân hàng (Bank)</Select.Option>
         </Select>
-        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={showModal} style={{ background: '#0ea5e9' }}>Create System/Bank Pocket</Button>
+        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={showModal} style={{ background: '#0ea5e9' }}>Create System Pocket</Button>
       </div>
       <Card className="glass-card">
         <Table 
@@ -176,7 +183,7 @@ export default function PocketManagement() {
       </Card>
 
       <Modal
-        title={<div style={{ fontSize: 18 }}><WalletOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> Create System / Bank Pocket</div>}
+        title={<div style={{ fontSize: 18 }}><WalletOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> Create System Pocket</div>}
         open={isModalVisible}
         onCancel={handleCancel}
         onOk={() => form.submit()}
@@ -189,17 +196,23 @@ export default function PocketManagement() {
           form={form} 
           layout="vertical" 
           onFinish={handleCreate}
-          initialValues={{ currency: 'VND', balance: 0 }}
+          initialValues={{ client: 'system', currency: 'VND', balance: 0 }}
           style={{ marginTop: 24 }}
         >
+          <Form.Item 
+            label={<Text strong>Tên ví (Tùy chọn)</Text>} 
+            name="name" 
+          >
+            <Input size="large" placeholder="Ví dụ: Ví Tiền Mặt Tại Quầy, Ví Thu Phí..." />
+          </Form.Item>
+
           <Form.Item 
             label={<Text strong>Client</Text>} 
             name="client" 
             rules={[{ required: true, message: 'Vui lòng chọn loại chủ thể' }]}
           >
-            <Select size="large" placeholder="Chọn System hoặc Bank">
+            <Select size="large" placeholder="Chọn System">
               <Option value="system">System (Ví trung tâm gom phí, đối soát...)</Option>
-              <Option value="bank">Bank (Ví ngân hàng chứa quỹ để Cash-in...)</Option>
             </Select>
           </Form.Item>
 

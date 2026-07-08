@@ -38,6 +38,12 @@ module.exports.routes = {
   'POST /api/customer/transaction/request': 'CustomerTransactionController.request',
   'POST /api/customer/transaction/confirm': 'CustomerTransactionController.confirm',
   'POST /api/customer/transaction/verify': 'CustomerTransactionController.verify',
+  
+  // Nạp rút Bank
+  'POST /api/customer/bank/request-link': 'CustomerBankController.requestLink',
+  'POST /api/customer/bank/verify-link': 'CustomerBankController.verifyLink',
+  'POST /api/customer/bank/list': 'CustomerBankController.list',
+  'POST /api/customer/bank/unlink': 'CustomerBankController.unlink',
 
   // 4. Nhóm API CMS cho Officer
   'POST /api/officer/customers/list': 'OfficerCustomerController.list', // Danh sách Customer
@@ -54,6 +60,8 @@ module.exports.routes = {
   'POST /api/officer/pocket-entries/list': 'OfficerPocketEntryController.list', // Danh sách Bút toán (Pocket Entry)
   'POST /api/officer/transactions/execute': 'OfficerTransactionController.execute', // Thực hiện giao dịch (mọi loại)
   'POST /api/officer/transactions/verify': 'OfficerTransactionController.verify',   // Xác thực PIN (nếu cần)
+  'POST /api/officer/banks/list': 'OfficerBankController.list', // Lấy danh sách ngân hàng
+  'POST /api/officer/banks/create': 'OfficerBankController.create', // Tạo ngân hàng
   
   // Dashboard
   'POST /api/officer/dashboard/stats': 'OfficerDashboardController.getStats',

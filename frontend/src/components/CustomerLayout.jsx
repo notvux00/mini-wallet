@@ -27,6 +27,7 @@ export default function CustomerLayout() {
   const menuItems = [
     { key: '/app/home', icon: <HomeOutlined />, label: 'Dashboard' },
     { key: '/app/transfer', icon: <SwapOutlined />, label: 'P2P Transfer' },
+    { key: '/app/banks', icon: <WalletFilled />, label: 'Linked Banks' },
     { key: '/app/bill-payment', icon: <FileTextOutlined />, label: 'Bill Payment' },
     { key: '/app/topup', icon: <MobileOutlined />, label: 'Mobile Topup' },
     { key: '/app/history', icon: <HistoryOutlined />, label: 'History' },

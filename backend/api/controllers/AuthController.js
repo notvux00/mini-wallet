@@ -38,6 +38,10 @@ module.exports = {
         checksum: validChecksum
       });
 
+      if (sails.sockets) {
+        sails.sockets.broadcast('officer_room', 'customer_created', { customer: newCustomer });
+      }
+
       // 6. Thành công! Trả về data (Chú ý: Giấu nhẹm passwordHash và pinHash đi)
       return res.ok({
         id: newCustomer.id,

@@ -74,7 +74,7 @@ export default function CustomerDashboard() {
     { icon: <FileTextOutlined />, label: 'Pay Bill', path: '/app/bill-payment', color: '#8b5cf6', bg: '#ede9fe' },
     { icon: <MobileOutlined />, label: 'Topup Phone', path: '/app/topup', color: '#10b981', bg: '#d1fae5' },
     { icon: <QrcodeOutlined />, label: 'QR Pay', path: '/app/coming-soon', color: '#f59e0b', bg: '#fef3c7' },
-    { icon: <BankOutlined />, label: 'Bank Link', path: '/app/coming-soon', color: '#ec4899', bg: '#fce7f3' },
+    { icon: <BankOutlined />, label: 'Linked Banks', path: '/app/banks', color: '#ec4899', bg: '#fce7f3' },
     { icon: <HistoryOutlined />, label: 'History', path: '/app/history', color: '#64748b', bg: '#f1f5f9' },
   ];
 

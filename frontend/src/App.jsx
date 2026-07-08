@@ -10,6 +10,7 @@ import ServiceBuilder from './pages/officer/ServiceBuilder';
 import PocketManagement from './pages/officer/PocketManagement';
 import BillerManagement from './pages/officer/BillerManagement';
 import CustomerManagement from './pages/officer/CustomerManagement';
+import BankManagement from './pages/officer/BankManagement';
 import TransactionTrail from './pages/officer/TransactionTrail';
 import TransactionHistory from './pages/officer/TransactionHistory';
 import PocketEntryHistory from './pages/officer/PocketEntryHistory';
@@ -22,6 +23,7 @@ import BillPayment from './pages/customer/BillPayment';
 import CustomerHistory from './pages/customer/CustomerHistory';
 import ComingSoon from './pages/customer/ComingSoon';
 import MobileTopup from './pages/customer/MobileTopup';
+import LinkedBanks from './pages/customer/LinkedBanks';
 import './App.css';
 import './index.css';
 
@@ -44,6 +46,7 @@ function App() {
               <Route path="pockets" element={<PocketManagement />} />
               <Route path="billers" element={<BillerManagement />} />
               <Route path="customers" element={<CustomerManagement />} />
+              <Route path="banks" element={<BankManagement />} />
               <Route path="history" element={<TransactionHistory />} />
               <Route path="trail" element={<TransactionTrail />} />
               <Route path="pocket-entries" element={<PocketEntryHistory />} />
@@ -56,6 +59,7 @@ function App() {
               <Route path="register" element={<CustomerRegister />} />
               <Route path="home" element={<CustomerDashboard />} />
               <Route path="transfer" element={<TransferP2P />} />
+              <Route path="banks" element={<LinkedBanks />} />
               <Route path="bill-payment" element={<BillPayment />} />
               <Route path="topup" element={<MobileTopup />} />
               <Route path="history" element={<CustomerHistory />} />

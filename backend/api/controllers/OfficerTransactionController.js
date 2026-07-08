@@ -108,7 +108,7 @@ module.exports = {
       const serviceIds = [...new Set(items.map(item => String(item.serviceId)))];
       const services = await Service.find({ id: serviceIds });
       const serviceMap = {};
-      services.forEach(s => { serviceMap[String(s.id)] = s.name; });
+      services.forEach(s => { serviceMap[String(s.id)] = s.code; });
 
       const formattedItems = items.map(item => {
         const obj = item.toJSON ? item.toJSON() : item;

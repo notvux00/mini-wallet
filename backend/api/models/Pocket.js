@@ -2,6 +2,11 @@ module.exports = {
 
   attributes: {
 
+    name: {
+      type: 'string',
+      allowNull: true,
+      description: 'Tên ví (để hiển thị trên UI)',
+    },
     user: {
       type: 'string',
       allowNull: true,

@@ -69,7 +69,6 @@ module.exports.routes = {
   // Sockets
   'GET /api/officer/socket/subscribe': 'SocketController.officerSubscribe',
   'GET /api/customer/socket/subscribe': 'SocketController.customerSubscribe',
-  'GET /api/test-socket': 'TestSocketController.testBroadcast',
 
   // Services
   'POST /api/officer/services/list': 'OfficerServiceController.list',

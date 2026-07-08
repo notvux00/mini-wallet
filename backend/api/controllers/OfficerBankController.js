@@ -1,5 +1,3 @@
-
-
 module.exports = {
   list: async function(req, res) {
     try {

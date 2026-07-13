@@ -146,13 +146,13 @@ export default function BillerManagement() {
   };
 
   const columns = [
-    { title: 'Code', dataIndex: 'code', key: 'code', align: 'center', width: '15%', render: text => <Text strong>{text}</Text> },
-    { title: 'Name', dataIndex: 'name', key: 'name', align: 'center', width: '20%' },
+    { title: 'Mã Biller', dataIndex: 'code', key: 'code', align: 'center', width: '15%', render: text => <Text strong>{text}</Text> },
+    { title: 'Tên hiển thị', dataIndex: 'name', key: 'name', align: 'center', width: '20%' },
     { title: 'Inquiry URL', dataIndex: 'inquiryUrl', key: 'inquiryUrl', align: 'center', width: '20%', ellipsis: true, render: text => <a title={text}>{text}</a> },
     { title: 'Payment URL', dataIndex: 'paymentUrl', key: 'paymentUrl', align: 'center', width: '15%', ellipsis: true, render: text => <a title={text}>{text}</a> },
-    { title: 'Receive Pocket ID', dataIndex: 'pocket', key: 'pocket', align: 'center', width: '15%', render: text => <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'processing' : 'error'} style={{ margin: 0 }}>{text.toUpperCase()}</Tag> },
-    { title: 'Action', key: 'action', align: 'center', width: '10%', render: (_, record) => (
+    { title: 'Ví nhận tiền', dataIndex: 'pocket', key: 'pocket', align: 'center', width: '15%', render: text => <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'processing' : 'error'} style={{ margin: 0 }}>{text.toUpperCase()}</Tag> },
+    { title: 'Thao tác', key: 'action', align: 'center', width: '10%', render: (_, record) => (
       <Space>
         <Button size="small" type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} style={{ color: '#0ea5e9' }} />
         <Popconfirm 
@@ -193,7 +193,7 @@ export default function BillerManagement() {
             <Select.Option value="inactive">Đã khóa (Inactive)</Select.Option>
           </Select>
         </Space>
-        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={showAddModal} style={{ background: '#0ea5e9' }}>Add Biller</Button>
+        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={showAddModal} style={{ background: '#0ea5e9' }}>Thêm Nhà cung cấp</Button>
       </div>
       <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden' } }}>
         <Table 
@@ -207,7 +207,7 @@ export default function BillerManagement() {
       </Card>
 
       <Modal
-        title={<div style={{ fontSize: 18 }}><PlusOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> {editingBiller ? 'Chỉnh sửa Biller' : 'Thêm Biller mới'}</div>}
+        title={<div style={{ fontSize: 18 }}><PlusOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> {editingBiller ? 'Chỉnh sửa Nhà cung cấp' : 'Thêm Nhà cung cấp mới'}</div>}
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}

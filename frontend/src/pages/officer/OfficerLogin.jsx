@@ -45,11 +45,11 @@ export default function OfficerLogin() {
           <Title level={3} style={{ margin: 0, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>
             Mini<span style={{ color: '#0ea5e9' }}>Wallet</span>
           </Title>
-          <Text style={{ color: '#64748b' }}>Officer Workspace</Text>
+          <Text style={{ color: '#64748b' }}>Không gian làm việc</Text>
         </div>
 
         <Card className="glass-card" style={{ borderRadius: 24, padding: 8 }}>
-          <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Officer Login</Title>
+          <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Đăng nhập Cán bộ</Title>
             <Form
               form={form}
               layout="vertical"
@@ -57,24 +57,24 @@ export default function OfficerLogin() {
             >
             <Form.Item
               name="username"
-              rules={[{ required: true, message: 'Please input your username!' }]}
+              rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
             >
               <Input 
                 size="large" 
                 prefix={<UserOutlined style={{ color: '#94a3b8' }} />} 
-                placeholder="Username" 
+                placeholder="Tên đăng nhập" 
                 style={{ borderRadius: 12 }}
               />
             </Form.Item>
 
             <Form.Item
               name="password"
-              rules={[{ required: true, message: 'Please input your password!' }]}
+              rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
             >
               <Input.Password 
                 size="large"
                 prefix={<LockOutlined style={{ color: '#94a3b8' }} />} 
-                placeholder="Password" 
+                placeholder="Mật khẩu" 
                 style={{ borderRadius: 12 }}
               />
             </Form.Item>
@@ -88,14 +88,14 @@ export default function OfficerLogin() {
                 loading={loading}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
-                Login to Workspace
+                Đăng nhập hệ thống
               </Button>
             </Form.Item>
           </Form>
         </Card>
         
         <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <Text style={{ color: '#94a3b8', fontSize: 12 }}>Protected System Area</Text>
+          <Text style={{ color: '#94a3b8', fontSize: 12 }}>Khu vực Hệ thống được Bảo vệ</Text>
         </div>
       </Col>
     </Row>

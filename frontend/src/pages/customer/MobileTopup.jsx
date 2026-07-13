@@ -235,10 +235,10 @@ export default function MobileTopup() {
                         size="large"
                         type={selectedAmount === amt ? 'primary' : 'default'}
                         onClick={() => handleSelectAmount(amt)}
-                        style={{ height: (discountPercent > 0 && selectedBillerCode) ? 65 : 60, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ height: discountPercent > 0 ? 65 : 60, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <span style={{ fontWeight: 600, fontSize: 16 }}>{(amt / 1000).toLocaleString('vi-VN')}K</span>
-                        {(discountPercent > 0 && selectedBillerCode) && (
+                        {discountPercent > 0 && (
                           <span style={{ fontSize: 12, color: selectedAmount === amt ? '#fff' : '#10b981', marginTop: 2, fontWeight: 'normal' }}>
                             Hoàn {(amt * discountPercent / 100).toLocaleString('vi-VN')}đ
                           </span>

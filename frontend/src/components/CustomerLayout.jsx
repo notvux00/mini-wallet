@@ -25,17 +25,17 @@ export default function CustomerLayout() {
   const isAuthPage = location.pathname === '/app/login' || location.pathname === '/app/register';
 
   const menuItems = [
-    { key: '/app/home', icon: <HomeOutlined />, label: 'Dashboard' },
-    { key: '/app/transfer', icon: <SwapOutlined />, label: 'P2P Transfer' },
-    { key: '/app/banks', icon: <WalletFilled />, label: 'Linked Banks' },
-    { key: '/app/bill-payment', icon: <FileTextOutlined />, label: 'Bill Payment' },
-    { key: '/app/topup', icon: <MobileOutlined />, label: 'Mobile Topup' },
-    { key: '/app/history', icon: <HistoryOutlined />, label: 'History' },
+    { key: '/app/home', icon: <HomeOutlined />, label: 'Trang chủ' },
+    { key: '/app/transfer', icon: <SwapOutlined />, label: 'Chuyển tiền' },
+    { key: '/app/banks', icon: <WalletFilled />, label: 'Liên kết ngân hàng' },
+    { key: '/app/bill-payment', icon: <FileTextOutlined />, label: 'Thanh toán hóa đơn' },
+    { key: '/app/topup', icon: <MobileOutlined />, label: 'Nạp tiền điện thoại' },
+    { key: '/app/history', icon: <HistoryOutlined />, label: 'Lịch sử giao dịch' },
   ];
 
   const userMenu = {
     items: [
-      { key: '1', icon: <LogoutOutlined />, label: 'Logout', onClick: () => { logout(); navigate('/app/login'); } }
+      { key: '1', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: () => { logout(); navigate('/app/login'); } }
     ]
   };
 
@@ -87,14 +87,14 @@ export default function CustomerLayout() {
       <Layout style={{ background: '#f7f9fa' }}>
         <Header className="glass-header" style={{ padding: '0 32px', height: 64, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff' }}>
           <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#0f172a' }}>
-            {menuItems.find(item => item.key === location.pathname)?.label || 'Dashboard'}
+            {menuItems.find(item => item.key === location.pathname)?.label || 'Trang chủ'}
           </Title>
           <Space size="large">
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#0ea5e9' }} icon={<UserOutlined />} />
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                  <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.name || 'Customer'}</Text>
+                  <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.name || 'Khách hàng'}</Text>
                   <Text type="secondary" style={{ fontSize: 12 }}>{maskPhone(user?.phone)}</Text>
                 </div>
               </Space>

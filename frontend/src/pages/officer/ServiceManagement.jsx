@@ -49,12 +49,12 @@ export default function ServiceManagement() {
 
   const columns = [
     {
-      title: 'Code', dataIndex: 'code', key: 'code', align: 'center', width: '25%',
+      title: 'Mã Dịch Vụ', dataIndex: 'code', key: 'code', align: 'center', width: '25%',
       render: text => <Text strong>{text}</Text>,
     },
-    { title: 'Name', dataIndex: 'name', key: 'name', align: 'center', width: '25%' },
+    { title: 'Tên Dịch Vụ', dataIndex: 'name', key: 'name', align: 'center', width: '25%' },
     {
-      title: 'Status', dataIndex: 'status', key: 'status', align: 'center', width: '15%',
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: '15%',
       render: (status) => (
         <Tag color={status === 'active' ? 'success' : 'default'}>
           {status?.toUpperCase() || 'ACTIVE'}
@@ -62,7 +62,7 @@ export default function ServiceManagement() {
       ),
     },
     {
-      title: 'Action', key: 'action', align: 'center', width: '35%',
+      title: 'Thao tác', key: 'action', align: 'center', width: '35%',
       render: (_, record) => (
         <Space>
           <Button
@@ -72,18 +72,18 @@ export default function ServiceManagement() {
             onClick={() => navigate(`/officer/service-builder/${record.key}`)}
             style={{ background: '#0ea5e9' }}
           >
-            Config
+            Cấu hình
           </Button>
           <Popconfirm
-            title={record.status === 'active' ? 'Deactivate service?' : 'Activate service?'}
+            title={record.status === 'active' ? 'Vô hiệu hóa dịch vụ?' : 'Kích hoạt dịch vụ?'}
             description={
               record.status === 'active'
-                ? 'Customers will not be able to use this service.'
-                : 'This service will become available to customers.'
+                ? 'Khách hàng sẽ không thể sử dụng dịch vụ này.'
+                : 'Dịch vụ này sẽ hiển thị cho khách hàng sử dụng.'
             }
             onConfirm={() => handleToggleStatus(record)}
-            okText="Confirm"
-            cancelText="Cancel"
+            okText="Xác nhận"
+            cancelText="Hủy bỏ"
             okButtonProps={{ danger: record.status === 'active' }}
           >
             <Button
@@ -92,7 +92,7 @@ export default function ServiceManagement() {
               danger={record.status === 'active'}
               style={record.status !== 'active' ? { color: '#16a34a', borderColor: '#16a34a' } : {}}
             >
-              {record.status === 'active' ? 'Deactivate' : 'Activate'}
+              {record.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
             </Button>
           </Popconfirm>
         </Space>
@@ -104,7 +104,7 @@ export default function ServiceManagement() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={handleAddService}>
-          New Service
+          Dịch vụ mới
         </Button>
       </div>
 
@@ -113,22 +113,22 @@ export default function ServiceManagement() {
       </Card>
 
       <Modal
-        title="Create New Service"
+        title="Tạo Dịch vụ mới"
         open={isModalVisible}
         onOk={handleAddService}
         onCancel={() => { setIsModalVisible(false); form.resetFields(); }}
-        okText="Create"
-        cancelText="Cancel"
+        okText="Tạo"
+        cancelText="Hủy bỏ"
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="code" label="Service Code" rules={[{ required: true, message: 'Please enter Service Code' }]}>
+          <Form.Item name="code" label="Mã dịch vụ" rules={[{ required: true, message: 'Vui lòng nhập Mã Dịch Vụ' }]}>
             <Input
-              placeholder="e.g., TELCO_TOPUP"
+              placeholder="VD: TELCO_TOPUP"
               onChange={(e) => form.setFieldsValue({ code: e.target.value.toUpperCase() })}
             />
           </Form.Item>
-          <Form.Item name="name" label="Service Name" rules={[{ required: true, message: 'Please enter Service Name' }]}>
-            <Input placeholder="e.g., Nạp tiền điện thoại" />
+          <Form.Item name="name" label="Tên dịch vụ" rules={[{ required: true, message: 'Vui lòng nhập Tên Dịch Vụ' }]}>
+            <Input placeholder="VD: Nạp tiền điện thoại" />
           </Form.Item>
         </Form>
       </Modal>

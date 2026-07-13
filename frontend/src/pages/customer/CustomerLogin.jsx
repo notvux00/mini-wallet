@@ -49,7 +49,7 @@ export default function CustomerLogin() {
         </div>
 
         <Card className="glass-card" style={{ borderRadius: 24, padding: 8 }}>
-          <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Welcome Back</Title>
+          <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Đăng nhập</Title>
             <Form
               form={form}
               layout="vertical"
@@ -57,24 +57,24 @@ export default function CustomerLogin() {
             >
             <Form.Item
               name="phone"
-              rules={[{ required: true, message: 'Please input your phone number!' }]}
+              rules={[{ required: true, message: 'Vui lòng nhập số điện thoại!' }]}
             >
               <Input 
                 size="large" 
                 prefix={<MobileOutlined style={{ color: '#94a3b8' }} />} 
-                placeholder="Phone Number" 
+                placeholder="Số điện thoại" 
                 style={{ borderRadius: 12 }}
               />
             </Form.Item>
 
             <Form.Item
               name="password"
-              rules={[{ required: true, message: 'Please input your password!' }]}
+              rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
             >
               <Input.Password 
                 size="large"
                 prefix={<LockOutlined style={{ color: '#94a3b8' }} />} 
-                placeholder="Password" 
+                placeholder="Mật khẩu" 
                 style={{ borderRadius: 12 }}
               />
             </Form.Item>
@@ -88,7 +88,7 @@ export default function CustomerLogin() {
                 loading={loading}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
-                Login
+                Đăng nhập
               </Button>
             </Form.Item>
           </Form>
@@ -96,7 +96,7 @@ export default function CustomerLogin() {
         
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <Text style={{ color: '#64748b' }}>
-            Don't have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/app/register'); }}>Register now</a>
+            Chưa có tài khoản? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/app/register'); }}>Đăng ký ngay</a>
           </Text>
         </div>
       </Col>

@@ -23,10 +23,10 @@ export default function TransactionTrail() {
   };
 
   const columns = [
-    { title: 'Trans Ref ID', dataIndex: 'id', key: 'id', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Service Code', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text}</Tag> },
-    { title: 'Step', dataIndex: 'transStep', key: 'transStep', align: 'center', render: text => <Tag color="purple">Step {text}</Tag> },
-    { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => {
+    { title: 'Mã tham chiếu', dataIndex: 'id', key: 'id', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Mã dịch vụ', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text}</Tag> },
+    { title: 'Bước', dataIndex: 'transStep', key: 'transStep', align: 'center', render: text => <Tag color="purple">Bước {text}</Tag> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', render: text => {
       let color = 'default';
       if (text === 'done') color = 'success';
       if (text === 'failed') color = 'error';
@@ -34,11 +34,11 @@ export default function TransactionTrail() {
       if (text === 'init') color = 'processing';
       return <Tag color={color} style={{ margin: 0 }}>{text.toUpperCase()}</Tag>;
     }},
-    { title: 'Created At', dataIndex: 'createdAt', key: 'createdAt', align: 'center' },
-    { title: 'Updated At', dataIndex: 'updatedAt', key: 'updatedAt', align: 'center' },
-    { title: 'Action', key: 'action', align: 'center', render: (_, record) => (
+    { title: 'Tạo lúc', dataIndex: 'createdAt', key: 'createdAt', align: 'center' },
+    { title: 'Cập nhật lúc', dataIndex: 'updatedAt', key: 'updatedAt', align: 'center' },
+    { title: 'Thao tác', key: 'action', align: 'center', render: (_, record) => (
       <Button size="small" type="primary" icon={<EyeOutlined />} onClick={() => showDetails(record)} style={{ background: '#0ea5e9' }}>
-        View Details
+        Xem chi tiết
       </Button>
     )}
   ];
@@ -169,33 +169,33 @@ export default function TransactionTrail() {
       </Card>
 
       <Modal
-        title={<div style={{ fontSize: 18 }}><FileTextOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> Trail Details: <Text code>{selectedTrail?.id}</Text></div>}
+        title={<div style={{ fontSize: 18 }}><FileTextOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> Chi tiết Dấu vết: <Text code>{selectedTrail?.id}</Text></div>}
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={[
           <Button key="close" type="primary" onClick={() => setIsModalVisible(false)} style={{ background: '#0ea5e9' }}>
-            Close
+            Đóng
           </Button>
         ]}
         width={800}
       >
         {selectedTrail && (
           <Tabs defaultActiveKey="1" style={{ marginTop: 16 }}>
-            <TabPane tab="Input Message" key="1">
+            <TabPane tab="Thông điệp Đầu vào" key="1">
               <pre style={{ background: '#f8fafc', padding: 16, borderRadius: 8, overflowX: 'auto', border: '1px solid #e2e8f0' }}>
                 {JSON.stringify(selectedTrail.inputMessage, null, 2)}
               </pre>
             </TabPane>
-            <TabPane tab="Output Message" key="2">
+            <TabPane tab="Thông điệp Đầu ra" key="2">
               {selectedTrail.outputMessage ? (
                 <pre style={{ background: '#f8fafc', padding: 16, borderRadius: 8, overflowX: 'auto', border: '1px solid #e2e8f0' }}>
                   {JSON.stringify(selectedTrail.outputMessage, null, 2)}
                 </pre>
               ) : (
-                <div style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>No output message (Failed before step 3)</div>
+                <div style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Không có thông điệp đầu ra (Thất bại trước bước 3)</div>
               )}
             </TabPane>
-            <TabPane tab="Step Logs" key="3">
+            <TabPane tab="Nhật ký Xử lý" key="3">
               <div style={{ padding: '24px 24px 0' }}>
                 <Timeline>
                   {selectedTrail.transStepLog.map((log, index) => (

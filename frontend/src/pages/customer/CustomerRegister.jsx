@@ -46,7 +46,7 @@ export default function CustomerRegister() {
         </div>
 
         <Card className="glass-card" style={{ borderRadius: 24, padding: 8 }}>
-          <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Create Account</Title>
+          <Title level={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>Đăng ký tài khoản</Title>
           <Form
             form={form}
             layout="vertical"
@@ -56,13 +56,13 @@ export default function CustomerRegister() {
               <Col span={12}>
                 <Form.Item
                   name="fullName"
-                  rules={[{ required: true, message: 'Please input your full name!' }]}
+                  rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
                   style={{ marginBottom: 16 }}
                 >
                   <Input 
                     size="large" 
                     prefix={<UserOutlined style={{ color: '#94a3b8' }} />} 
-                    placeholder="Full Name" 
+                    placeholder="Họ và tên" 
                     style={{ borderRadius: 12 }}
                   />
                 </Form.Item>
@@ -70,13 +70,13 @@ export default function CustomerRegister() {
               <Col span={12}>
                 <Form.Item
                   name="phone"
-                  rules={[{ required: true, message: 'Please input your phone number!' }]}
+                  rules={[{ required: true, message: 'Vui lòng nhập số điện thoại!' }]}
                   style={{ marginBottom: 16 }}
                 >
                   <Input 
                     size="large" 
                     prefix={<MobileOutlined style={{ color: '#94a3b8' }} />} 
-                    placeholder="Phone Number" 
+                    placeholder="Số điện thoại" 
                     style={{ borderRadius: 12 }}
                   />
                 </Form.Item>
@@ -87,13 +87,13 @@ export default function CustomerRegister() {
               <Col span={12}>
                 <Form.Item
                   name="password"
-                  rules={[{ required: true, message: 'Please input a password!' }]}
+                  rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
                   style={{ marginBottom: 16 }}
                 >
                   <Input.Password 
                     size="large"
                     prefix={<LockOutlined style={{ color: '#94a3b8' }} />} 
-                    placeholder="Password" 
+                    placeholder="Mật khẩu" 
                     style={{ borderRadius: 12 }}
                   />
                 </Form.Item>
@@ -103,13 +103,13 @@ export default function CustomerRegister() {
                   name="confirmPassword"
                   dependencies={['password']}
                   rules={[
-                    { required: true, message: 'Please confirm your password!' },
+                    { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
                     ({ getFieldValue }) => ({
                       validator(_, value) {
                         if (!value || getFieldValue('password') === value) {
                           return Promise.resolve();
                         }
-                        return Promise.reject(new Error('The two passwords do not match!'));
+                        return Promise.reject(new Error('Mật khẩu không khớp!'));
                       },
                     }),
                   ]}
@@ -118,7 +118,7 @@ export default function CustomerRegister() {
                   <Input.Password 
                     size="large"
                     prefix={<LockOutlined style={{ color: '#94a3b8' }} />} 
-                    placeholder="Confirm Password" 
+                    placeholder="Xác nhận mật khẩu" 
                     style={{ borderRadius: 12 }}
                   />
                 </Form.Item>
@@ -129,13 +129,13 @@ export default function CustomerRegister() {
               <Col span={12}>
                 <Form.Item
                   name="pin"
-                  rules={[{ required: true, message: 'Please input a 6-digit PIN!' }]}
+                  rules={[{ required: true, message: 'Vui lòng nhập mã PIN 6 số!' }]}
                   style={{ marginBottom: 16 }}
                 >
                   <Input.Password 
                     size="large"
                     prefix={<LockOutlined style={{ color: '#0ea5e9' }} />} 
-                    placeholder="6-digit PIN" 
+                    placeholder="Mã PIN 6 số" 
                     maxLength={6}
                     style={{ borderRadius: 12 }}
                   />
@@ -146,13 +146,13 @@ export default function CustomerRegister() {
                   name="confirmPin"
                   dependencies={['pin']}
                   rules={[
-                    { required: true, message: 'Please confirm your PIN!' },
+                    { required: true, message: 'Vui lòng xác nhận mã PIN!' },
                     ({ getFieldValue }) => ({
                       validator(_, value) {
                         if (!value || getFieldValue('pin') === value) {
                           return Promise.resolve();
                         }
-                        return Promise.reject(new Error('The two PINs do not match!'));
+                        return Promise.reject(new Error('Mã PIN không khớp!'));
                       },
                     }),
                   ]}
@@ -161,7 +161,7 @@ export default function CustomerRegister() {
                   <Input.Password 
                     size="large"
                     prefix={<LockOutlined style={{ color: '#0ea5e9' }} />} 
-                    placeholder="Confirm PIN" 
+                    placeholder="Xác nhận mã PIN" 
                     maxLength={6}
                     style={{ borderRadius: 12 }}
                   />
@@ -178,7 +178,7 @@ export default function CustomerRegister() {
                 loading={loading}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
-                Register
+                Đăng ký
               </Button>
             </Form.Item>
           </Form>
@@ -186,7 +186,7 @@ export default function CustomerRegister() {
         
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <Text style={{ color: '#64748b' }}>
-            Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/app/login'); }}>Login</a>
+            Đã có tài khoản? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/app/login'); }}>Đăng nhập</a>
           </Text>
         </div>
       </Col>

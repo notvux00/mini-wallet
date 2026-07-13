@@ -381,7 +381,7 @@ export default function TransferP2P() {
             subTitle={`Mã giao dịch: ${previewData?.transRefId}`}
             extra={[
               <Button type="primary" key="home" onClick={() => navigate('/app/home')}>
-                Về Dashboard
+                Về Trang chủ
               </Button>,
               <Button key="new" onClick={handleReset}>
                 Chuyển tiền mới

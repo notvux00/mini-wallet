@@ -14,17 +14,17 @@ export default function PocketEntryHistory() {
   };
 
   const columns = [
-    { title: 'Trans Ref ID', dataIndex: 'transRefId', key: 'transRefId', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Step', dataIndex: 'stepOrder', key: 'stepOrder', align: 'center', render: text => <Tag color="purple">Step {text}</Tag> },
-    { title: 'Debit Pocket', dataIndex: 'debit', key: 'debit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Credit Pocket', dataIndex: 'credit', key: 'credit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Amount', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong style={{ color: '#0ea5e9' }}>{(text ?? 0).toLocaleString()}</Text> },
-    { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => {
-        if (text === 'settled') return <Tag color="success" icon={<CheckCircleOutlined />}>SETTLED</Tag>;
-        if (text === 'failed') return <Tag color="error" icon={<CloseCircleOutlined />}>FAILED</Tag>;
+    { title: 'Mã tham chiếu', dataIndex: 'transRefId', key: 'transRefId', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Bước', dataIndex: 'stepOrder', key: 'stepOrder', align: 'center', render: text => <Tag color="purple">Bước {text}</Tag> },
+    { title: 'Ví Nợ', dataIndex: 'debit', key: 'debit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Ví Có', dataIndex: 'credit', key: 'credit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Số tiền', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong style={{ color: '#0ea5e9' }}>{(text ?? 0).toLocaleString()}</Text> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', render: text => {
+        if (text === 'settled') return <Tag color="success" icon={<CheckCircleOutlined />}>HOÀN TẤT</Tag>;
+        if (text === 'failed') return <Tag color="error" icon={<CloseCircleOutlined />}>THẤT BẠI</Tag>;
         return <Tag color="processing" icon={<SyncOutlined spin />}>{text?.toUpperCase()}</Tag>;
     }},
-    { title: 'Created At', dataIndex: 'createdAt', key: 'createdAt', align: 'center', render: text => new Date(text).toLocaleString('vi-VN') }
+    { title: 'Tạo lúc', dataIndex: 'createdAt', key: 'createdAt', align: 'center', render: text => new Date(text).toLocaleString('vi-VN') }
   ];
 
   const [data, setData] = useState([]);

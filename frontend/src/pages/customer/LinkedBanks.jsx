@@ -190,7 +190,7 @@ export default function LinkedBanks() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}><BankOutlined /> Linked Banks</Title>
+        <Title level={3} style={{ margin: 0 }}><BankOutlined /> Liên kết ngân hàng</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsLinkModalVisible(true)} style={{ background: '#0ea5e9' }}>
           Thêm Thẻ Mới
         </Button>

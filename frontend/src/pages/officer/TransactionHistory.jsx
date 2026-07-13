@@ -14,17 +14,17 @@ export default function TransactionHistory() {
   };
 
   const columns = [
-    { title: 'Trans Ref ID', dataIndex: 'transRefId', key: 'transRefId', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Service Code', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text || 'N/A'}</Tag> },
-    { title: 'Sender Pocket', dataIndex: 'sender', key: 'sender', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
-    { title: 'Receiver Pocket', dataIndex: 'receiver', key: 'receiver', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
-    { title: 'Amount', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong>{(text ?? 0).toLocaleString()}</Text> },
-    { title: 'Fee', dataIndex: 'fee', key: 'fee', align: 'right', render: text => <Text type="danger">{(text ?? 0).toLocaleString()}</Text> },
-    { title: 'Total Amount', dataIndex: 'totalAmount', key: 'totalAmount', align: 'right', render: text => <Text type="success" strong>{(text ?? 0).toLocaleString()}</Text> },
-    { title: 'Biller Ref ID', dataIndex: 'billerRefId', key: 'billerRefId', align: 'center', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
-    { title: 'Status', dataIndex: 'status', key: 'status', align: 'center', render: text => <Tag color="success" icon={<CheckCircleOutlined />}>{(text || 'done').toUpperCase()}</Tag> },
-    { title: 'Description', dataIndex: 'description', key: 'description', align: 'center', render: text => <Text type="secondary" italic>{text || 'N/A'}</Text> },
-    { title: 'Created At', dataIndex: 'createdAt', key: 'createdAt', align: 'center' }
+    { title: 'Mã tham chiếu', dataIndex: 'transRefId', key: 'transRefId', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Mã dịch vụ', dataIndex: 'serviceId', key: 'serviceId', align: 'center', render: text => <Tag color="blue">{text || 'N/A'}</Tag> },
+    { title: 'Ví gửi', dataIndex: 'sender', key: 'sender', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
+    { title: 'Ví nhận', dataIndex: 'receiver', key: 'receiver', align: 'center', render: text => text ? <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
+    { title: 'Số tiền', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong>{(text ?? 0).toLocaleString()}</Text> },
+    { title: 'Phí', dataIndex: 'fee', key: 'fee', align: 'right', render: text => <Text type="danger">{(text ?? 0).toLocaleString()}</Text> },
+    { title: 'Tổng cộng', dataIndex: 'totalAmount', key: 'totalAmount', align: 'right', render: text => <Text type="success" strong>{(text ?? 0).toLocaleString()}</Text> },
+    { title: 'Mã đối soát', dataIndex: 'billerRefId', key: 'billerRefId', align: 'center', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>N/A</Text> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', render: text => <Tag color="success" icon={<CheckCircleOutlined />}>{(text || 'done').toUpperCase()}</Tag> },
+    { title: 'Mô tả', dataIndex: 'description', key: 'description', align: 'center', render: text => <Text type="secondary" italic>{text || 'N/A'}</Text> },
+    { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', align: 'center' }
   ];
 
   const [data, setData] = useState([]);
@@ -108,14 +108,14 @@ export default function TransactionHistory() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         <Space>
           <Input.Search 
-            placeholder="Trans Ref ID..." 
+            placeholder="Mã tham chiếu..." 
             allowClear
             onSearch={handleSearchTransRef} 
             style={{ width: 200 }} 
             size="large"
           />
           <Input.Search 
-            placeholder="Service Code..." 
+            placeholder="Mã dịch vụ..." 
             allowClear
             onSearch={handleSearchServiceId} 
             style={{ width: 180 }} 

@@ -195,14 +195,14 @@ export default function ServiceBuilder() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="serviceCode" label="Mã Dịch vụ (Code)" rules={[{ required: true }]}>
+                <Form.Item name="serviceCode" label="Mã Dịch vụ" rules={[{ required: true }]}>
                   <Input placeholder="Ví dụ: P2P_TRANSFER" disabled={!!id} />
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={24}>
               <Col span={8}>
-                <Form.Item name="authMethod" label="Xác thực (Auth)">
+                <Form.Item name="authMethod" label="Xác thực">
                   <Select size="large">
                     <Option value="PIN">Yêu cầu nhập mã PIN</Option>
                     <Option value="NONE">Không cần xác thực (NONE)</Option>
@@ -225,7 +225,7 @@ export default function ServiceBuilder() {
             </Row>
             <Row gutter={24}>
               <Col span={12}>
-                <Form.Item name="action" label="Loại Dịch vụ (Action)">
+                <Form.Item name="action" label="Loại Dịch vụ">
                   <Select size="large">
                     <Option value="none">Chuyển tiền nội bộ (P2P)</Option>
                     <Option value="billerTrans">Thanh toán Hóa đơn (Biller)</Option>
@@ -245,7 +245,7 @@ export default function ServiceBuilder() {
       icon: <UnorderedListOutlined />,
       content: (
         <Card 
-          title="Định nghĩa tham số giao dịch (Transaction Payload)" 
+          title="Định nghĩa tham số giao dịch"
           className="glass-card"
         >
           <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
@@ -266,7 +266,7 @@ export default function ServiceBuilder() {
                   </Select>
                 </Col>
                 <Col span={5}>
-                  <Text strong>Tên Biến (Để dùng sau):</Text>
+                  <Text strong>Tên biến tĩnh:</Text>
                   <Input value={field.variableName} onChange={e => updateInputField(field.id, 'variableName', e.target.value)} />
                 </Col>
                 <Col span={3} style={{ textAlign: 'center' }}>
@@ -291,11 +291,11 @@ export default function ServiceBuilder() {
                       <InputNumber style={{ width: '100%', marginTop: 4 }} value={field.maxLength} onChange={val => updateInputField(field.id, 'maxLength', val)} />
                     </Col>
                     <Col span={12} style={{ marginTop: 12 }}>
-                      <Text strong>Mã lỗi tuỳ chỉnh (Error Code):</Text>
+                      <Text strong>Mã lỗi tuỳ chỉnh:</Text>
                       <Input style={{ marginTop: 4 }} value={field.errorCode} placeholder="VD: ERR_INVALID_DATA" onChange={e => updateInputField(field.id, 'errorCode', e.target.value)} />
                     </Col>
                     <Col span={12} style={{ marginTop: 12 }}>
-                      <Text strong>Câu thông báo lỗi (Error Message):</Text>
+                      <Text strong>Câu thông báo lỗi:</Text>
                       <Input style={{ marginTop: 4 }} value={field.errorMessage} placeholder="VD: Dữ liệu không hợp lệ" onChange={e => updateInputField(field.id, 'errorMessage', e.target.value)} />
                     </Col>
                   </Row>
@@ -391,7 +391,7 @@ export default function ServiceBuilder() {
               <Card type="inner" title="Ánh xạ Biến Hóa đơn (Dành riêng cho Biller)" style={{ borderColor: '#0ea5e9' }}>
                 <Row gutter={24}>
                   <Col span={12}>
-                    <Text strong>Tên biến chứa Mã Nhà cung cấp (Biller ID):</Text>
+                    <Text strong>Tên biến chứa Mã Nhà cung cấp:</Text>
                     <Select 
                       style={{ width: '100%', marginTop: 8 }} 
                       size="large"
@@ -405,7 +405,7 @@ export default function ServiceBuilder() {
                     </Select>
                   </Col>
                   <Col span={12}>
-                    <Text strong>Tên biến chứa Mã Khách hàng (Customer Code):</Text>
+                    <Text strong>Tên biến chứa Mã Khách hàng:</Text>
                     <Select 
                       style={{ width: '100%', marginTop: 8 }} 
                       size="large"
@@ -440,7 +440,7 @@ export default function ServiceBuilder() {
               <Card type="inner" title="Ánh xạ Thẻ Ngân hàng (Dành riêng cho Nạp/Rút)" style={{ borderColor: '#f59e0b' }}>
                 <Row gutter={24}>
                   <Col span={24}>
-                    <Text strong>Tên biến chứa Mã Thẻ liên kết (Bank Link ID):</Text>
+                    <Text strong>Tên biến chứa Mã Thẻ liên kết:</Text>
                     <br />
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       Engine sẽ dùng mã thẻ này để tra cứu chính xác Ví Ngân hàng nào đang tham gia giao dịch.

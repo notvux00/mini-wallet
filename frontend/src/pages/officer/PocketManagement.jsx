@@ -15,15 +15,15 @@ export default function PocketManagement() {
   };
 
   const columns = [
-    { title: 'Pocket ID', dataIndex: 'id', key: 'id', align: 'center', width: '15%', render: text => <Text strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Name', dataIndex: 'name', key: 'name', align: 'center', width: '15%', render: text => text ? <Text strong>{text}</Text> : <Text type="secondary" italic>No Name</Text> },
-    { title: 'User Ref', dataIndex: 'user', key: 'user', align: 'center', width: '15%', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>NULL</Text> },
-    { title: 'Client', dataIndex: 'client', key: 'client', align: 'center', width: '10%', render: text => <Tag color={text === 'system' || text === 'bank' ? 'purple' : 'blue'}>{text.toUpperCase()}</Tag> },
-    { title: 'Currency', dataIndex: 'currency', key: 'currency', align: 'center', width: '10%' },
-    { title: 'Balance', dataIndex: 'balance', key: 'balance', align: 'center', width: '15%', render: text => <Text type="success" strong>{text.toLocaleString()}</Text> },
-    { title: 'State (Lock)', dataIndex: 'state', key: 'state', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'success' : 'warning'} style={{ margin: 0 }}>{text === 'inProgress' ? 'LOCKED (ENGINE)' : text.toUpperCase()}</Tag> },
-    { title: 'Status (Sys)', dataIndex: 'status', key: 'status', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'default' : 'error'} style={{ margin: 0 }}>{text.toUpperCase()}</Tag> },
-    { title: 'Action', key: 'action', align: 'center', width: '10%', render: (_, record) => (
+    { title: 'Mã ví (Pocket ID)', dataIndex: 'id', key: 'id', align: 'center', width: '15%', render: text => <Text strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Tên ví', dataIndex: 'name', key: 'name', align: 'center', width: '15%', render: text => text ? <Text strong>{text}</Text> : <Text type="secondary" italic>Không tên</Text> },
+    { title: 'Tham chiếu người dùng', dataIndex: 'user', key: 'user', align: 'center', width: '15%', render: text => text ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary" italic>Trống</Text> },
+    { title: 'Loại chủ thể', dataIndex: 'client', key: 'client', align: 'center', width: '10%', render: text => <Tag color={text === 'system' || text === 'bank' ? 'purple' : 'blue'}>{text.toUpperCase()}</Tag> },
+    { title: 'Tiền tệ', dataIndex: 'currency', key: 'currency', align: 'center', width: '10%' },
+    { title: 'Số dư', dataIndex: 'balance', key: 'balance', align: 'center', width: '15%', render: text => <Text type="success" strong>{text.toLocaleString()}</Text> },
+    { title: 'Trạng thái (Khóa)', dataIndex: 'state', key: 'state', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'success' : 'warning'} style={{ margin: 0 }}>{text === 'inProgress' ? 'ĐANG KHÓA (ENGINE)' : text.toUpperCase()}</Tag> },
+    { title: 'Trạng thái (Hệ thống)', dataIndex: 'status', key: 'status', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'default' : 'error'} style={{ margin: 0 }}>{text.toUpperCase()}</Tag> },
+    { title: 'Thao tác', key: 'action', align: 'center', width: '10%', render: (_, record) => (
       <Space>
         <Popconfirm 
           title={record.status === 'active' ? "Vô hiệu hóa (Inactive) Pocket này?" : "Kích hoạt (Active) Pocket này?"} 
@@ -36,7 +36,7 @@ export default function PocketManagement() {
             type="text"
             style={record.status !== 'active' ? { color: '#10b981' } : {}}
           >
-            {record.status === 'active' ? 'Deactivate' : 'Activate'}
+            {record.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
           </Button>
         </Popconfirm>
       </Space>
@@ -169,7 +169,7 @@ export default function PocketManagement() {
           <Select.Option value="system">Ví hệ thống trung tâm (System)</Select.Option>
           <Select.Option value="bank">Ví liên kết ngân hàng (Bank)</Select.Option>
         </Select>
-        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={showModal} style={{ background: '#0ea5e9' }}>Create System Pocket</Button>
+        <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={showModal} style={{ background: '#0ea5e9' }}>Thêm Ví Hệ thống</Button>
       </div>
       <Card className="glass-card">
         <Table 
@@ -183,13 +183,13 @@ export default function PocketManagement() {
       </Card>
 
       <Modal
-        title={<div style={{ fontSize: 18 }}><WalletOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> Create System Pocket</div>}
+        title={<div style={{ fontSize: 18 }}><WalletOutlined style={{ color: '#0ea5e9', marginRight: 8 }}/> Thêm Ví Hệ thống</div>}
         open={isModalVisible}
         onCancel={handleCancel}
         onOk={() => form.submit()}
-        okText="Create Pocket"
+        okText="Tạo Ví"
         okButtonProps={{ style: { background: '#0ea5e9' } }}
-        cancelText="Cancel"
+        cancelText="Hủy"
         destroyOnHidden
       >
         <Form 
@@ -217,7 +217,7 @@ export default function PocketManagement() {
           </Form.Item>
 
           <Form.Item 
-            label={<Text strong>Currency</Text>} 
+            label={<Text strong>Tiền tệ</Text>} 
             name="currency" 
             rules={[{ required: true, message: 'Vui lòng nhập loại tiền tệ' }]}
           >
@@ -228,7 +228,7 @@ export default function PocketManagement() {
           </Form.Item>
 
           <Form.Item 
-            label={<Text strong>Initial Balance</Text>} 
+            label={<Text strong>Số dư ban đầu</Text>} 
             name="balance"
             rules={[{ required: true, message: 'Vui lòng nhập số dư ban đầu' }]}
           >

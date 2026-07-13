@@ -168,14 +168,14 @@ export default function CustomerManagement() {
   };
 
   const columns = [
-    { title: 'Phone', dataIndex: 'phone', key: 'phone', align: 'center', width: '15%', render: text => <Text strong style={{ color: '#0f172a' }}>{text}</Text> },
-    { title: 'Name', dataIndex: 'name', key: 'name', align: 'center', width: '20%' },
-    { title: 'Pocket ID', dataIndex: 'pocket', key: 'pocket', align: 'center', width: '15%', render: text => text !== 'N/A' ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary">N/A</Text> },
-    { title: 'Balance (VND)', dataIndex: 'balance', key: 'balance', align: 'center', width: '15%', render: text => <Text type="success" strong style={{ fontSize: 15 }}>{text.toLocaleString()}</Text> },
-    { title: 'Registered At', dataIndex: 'createdAt', key: 'createdAt', align: 'center', width: '20%' },
-    { title: 'Action', key: 'action', align: 'center', width: '15%', render: (_, record) => (
+    { title: 'Số điện thoại', dataIndex: 'phone', key: 'phone', align: 'center', width: '15%', render: text => <Text strong style={{ color: '#0f172a' }}>{text}</Text> },
+    { title: 'Họ và tên', dataIndex: 'name', key: 'name', align: 'center', width: '20%' },
+    { title: 'Mã ví', dataIndex: 'pocket', key: 'pocket', align: 'center', width: '15%', render: text => text !== 'N/A' ? <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> : <Text type="secondary">N/A</Text> },
+    { title: 'Số dư', dataIndex: 'balance', key: 'balance', align: 'center', width: '15%', render: text => <Text type="success" strong style={{ fontSize: 15 }}>{text.toLocaleString()}</Text> },
+    { title: 'Ngày đăng ký', dataIndex: 'createdAt', key: 'createdAt', align: 'center', width: '20%' },
+    { title: 'Thao tác', key: 'action', align: 'center', width: '15%', render: (_, record) => (
       <Space>
-        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => handleCashInClick(record)} style={{ background: '#0ea5e9' }}>Cash In</Button>
+        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => handleCashInClick(record)} style={{ background: '#0ea5e9' }}>Nạp tiền</Button>
       </Space>
     )}
   ];
@@ -214,19 +214,19 @@ export default function CustomerManagement() {
           <Form form={form} layout="vertical" onFinish={handleCashInSubmit} style={{ marginTop: 24 }}>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item label="Customer Phone">
+                <Form.Item label="Số điện thoại khách hàng">
                   <Input value={selectedCustomer.phone} disabled size="large" style={{ color: '#0f172a', fontWeight: 600 }} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="Target Pocket ID">
+                <Form.Item label="Mã ví">
                   <Input value={selectedCustomer.pocket} disabled size="large" />
                 </Form.Item>
               </Col>
             </Row>
             
             <div style={{ background: '#f8fafc', padding: '16px 20px', borderRadius: 8, marginBottom: 24, border: '1px solid #e2e8f0' }}>
-              <Text style={{ color: '#64748b' }}>Current Balance:</Text>
+              <Text style={{ color: '#64748b' }}>Số dư hiện tại:</Text>
               <Title level={2} style={{ margin: 0, color: '#10b981' }}>
                 {selectedCustomer.balance.toLocaleString()} <span style={{ fontSize: 16, fontWeight: 500 }}>VND</span>
               </Title>
@@ -248,7 +248,7 @@ export default function CustomerManagement() {
             </Form.Item>
 
             <Form.Item 
-              label={<Text strong>Top-up Amount (VND)</Text>} 
+              label={<Text strong>Số tiền nạp</Text>} 
               name="amount" 
               rules={[{ required: true, message: 'Vui lòng nhập số tiền!' }]}
             >
@@ -263,7 +263,7 @@ export default function CustomerManagement() {
               />
             </Form.Item>
 
-            <Form.Item label="Reason / Note" name="note">
+            <Form.Item label="Lý do / Ghi chú" name="note">
               <Input.TextArea placeholder="Ghi chú giao dịch (ví dụ: Khách nộp tiền mặt)..." rows={3} />
             </Form.Item>
 

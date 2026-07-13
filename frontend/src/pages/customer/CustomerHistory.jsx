@@ -56,19 +56,19 @@ export default function CustomerHistory() {
 
   const columns = [
     {
-      title: 'Time',
+      title: 'Thời gian',
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (val) => val ? new Date(val).toLocaleString('vi-VN') : '---'
     },
     {
-      title: 'Transaction ID',
+      title: 'Mã giao dịch',
       dataIndex: 'transRefId',
       key: 'transRefId',
       render: (text) => <Text copyable>{text}</Text>
     },
     {
-      title: 'Amount',
+      title: 'Số tiền',
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
@@ -85,21 +85,21 @@ export default function CustomerHistory() {
       }
     },
     {
-      title: 'Service',
+      title: 'Dịch vụ',
       dataIndex: 'serviceName',
       key: 'serviceName',
       align: 'center',
-      render: (serviceName) => <Tag color="blue">{serviceName || 'UNKNOWN'}</Tag>
+      render: (serviceName) => <Tag color="blue">{serviceName || 'KHÔNG RÕ'}</Tag>
     },
     {
-      title: 'Status',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       align: 'center',
       render: (status) => <Tag color="success">{status?.toUpperCase()}</Tag>
     },
     {
-      title: 'Description',
+      title: 'Nội dung',
       dataIndex: 'description',
       key: 'description',
       render: (text) => <Text type="secondary" italic>{text || 'Không có ghi chú'}</Text>
@@ -108,7 +108,7 @@ export default function CustomerHistory() {
 
   return (
     <div>
-      <Title level={3} style={{ marginBottom: 24, color: '#0f172a' }}>Transaction History</Title>
+      <Title level={3} style={{ marginBottom: 24, color: '#0f172a' }}>Lịch sử giao dịch</Title>
       <Card className="glass-card" style={{ borderRadius: 16 }}>
         <Table 
           columns={columns} 

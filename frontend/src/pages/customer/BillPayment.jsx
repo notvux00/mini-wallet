@@ -212,7 +212,7 @@ export default function BillPayment() {
               style={{ marginTop: 16 }}
               loading={isEnquiring}
             >
-              {isEnquiring ? 'Checking Bill...' : 'Continue'}
+              {isEnquiring ? 'Đang tra cứu...' : 'Tiếp tục'}
             </Button>
           </Form>
         </Card>

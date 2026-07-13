@@ -33,20 +33,20 @@ export default function OfficerLayout() {
   const isLoginPage = location.pathname === '/officer/login';
 
   const menuItems = [
-    { key: '/officer/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-    { key: '/officer/services', icon: <AppstoreOutlined />, label: 'Services' },
-    { key: '/officer/pockets', icon: <WalletOutlined />, label: 'Pockets' },
-    { key: '/officer/billers', icon: <ShopOutlined />, label: 'Billers' },
-    { key: '/officer/banks', icon: <BankOutlined />, label: 'Banks' },
-    { key: '/officer/customers', icon: <TeamOutlined />, label: 'Customers' },
-    { key: '/officer/pocket-entries', icon: <SwapOutlined />, label: 'Pocket Entries' },
-    { key: '/officer/trail', icon: <AuditOutlined />, label: 'Transaction Trail' },
-    { key: '/officer/history', icon: <FileDoneOutlined />, label: 'History' },
+    { key: '/officer/dashboard', icon: <DashboardOutlined />, label: 'Tổng quan' },
+    { key: '/officer/services', icon: <AppstoreOutlined />, label: 'Dịch vụ' },
+    { key: '/officer/pockets', icon: <WalletOutlined />, label: 'Quản lý ví' },
+    { key: '/officer/billers', icon: <ShopOutlined />, label: 'Nhà cung cấp' },
+    { key: '/officer/banks', icon: <BankOutlined />, label: 'Ngân hàng' },
+    { key: '/officer/customers', icon: <TeamOutlined />, label: 'Khách hàng' },
+    { key: '/officer/pocket-entries', icon: <SwapOutlined />, label: 'Biến động ví' },
+    { key: '/officer/trail', icon: <AuditOutlined />, label: 'Tra soát giao dịch' },
+    { key: '/officer/history', icon: <FileDoneOutlined />, label: 'Lịch sử giao dịch' },
   ];
 
   const userMenu = {
     items: [
-      { key: '1', icon: <LogoutOutlined />, label: 'Logout', onClick: () => { logout(); navigate('/officer/login'); } }
+      { key: '1', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: () => { logout(); navigate('/officer/login'); } }
     ]
   };
 
@@ -96,13 +96,13 @@ export default function OfficerLayout() {
       <Layout style={{ background: '#f7f9fa' }}>
         <Header className="glass-header" style={{ padding: '0 32px', height: 64, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff' }}>
           <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#0f172a' }}>
-            {menuItems.find(item => item.key === location.pathname)?.label || (location.pathname === '/officer/transaction-design' ? 'Config Builder' : 'Dashboard')}
+            {menuItems.find(item => item.key === location.pathname)?.label || (location.pathname === '/officer/transaction-design' ? 'Cấu hình giao dịch' : 'Tổng quan')}
           </Title>
           <Space size="large">
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar style={{ backgroundColor: '#e0f2fe', color: '#0ea5e9' }} icon={<UserOutlined />} />
-                <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.name || user?.username || 'Admin Officer'}</Text>
+                <Text strong style={{ color: '#0f172a', fontSize: 14 }}>{user?.name || user?.username || 'Vận hành viên'}</Text>
               </Space>
             </Dropdown>
           </Space>

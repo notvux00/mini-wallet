@@ -13,17 +13,17 @@ export default function ComingSoon() {
       <Card className="glass-card" style={{ borderRadius: 24, padding: 24, maxWidth: 500, textAlign: 'center' }}>
         <Result
           icon={<ToolOutlined style={{ color: '#0ea5e9' }} />}
-          title={<Title level={3} style={{ margin: 0, color: '#0f172a' }}>Under Development</Title>}
+          title={<Title level={3} style={{ margin: 0, color: '#0f172a' }}>Đang phát triển</Title>}
           subTitle={
             <div style={{ marginTop: 16 }}>
               <Text style={{ fontSize: 16, color: '#64748b' }}>
-                This feature is currently being built by our amazing team. Please check back later!
+                Tính năng này đang được phát triển. Vui lòng quay lại sau!
               </Text>
             </div>
           }
           extra={
             <Button type="primary" size="large" shape="round" onClick={() => navigate('/app/home')} style={{ marginTop: 24 }}>
-              Back to Dashboard
+              Về Trang chủ
             </Button>
           }
         />

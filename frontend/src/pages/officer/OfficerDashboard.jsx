@@ -115,7 +115,7 @@ export default function OfficerDashboard() {
           <Col xs={24} sm={12} lg={6}>
             <Card bordered={false} className="glass-card" style={{ borderRadius: 16 }}>
               <Statistic 
-                title="Billers (Nhà CC)" 
+                title="Nhà cung cấp" 
                 value={cards.totalBillers} 
                 prefix={<BankOutlined style={{ color: '#8b5cf6' }} />} 
                 valueStyle={{ color: '#0f172a', fontWeight: 700 }}

@@ -63,7 +63,7 @@ export default function BankManagement() {
   const columns = [
     { title: 'Mã Ngân Hàng', dataIndex: 'code', key: 'code', align: 'center', render: text => <Tag color="blue">{text}</Tag> },
     { title: 'Tên Ngân Hàng', dataIndex: 'name', key: 'name', align: 'center', render: text => <Text strong>{text}</Text> },
-    { title: 'ID Ví Kế toán (Pocket)', dataIndex: 'pocketId', key: 'pocketId', align: 'center', render: text => <Text code copyable>{text}</Text> },
+    { title: 'ID Ví Kế toán', dataIndex: 'pocketId', key: 'pocketId', align: 'center', render: text => <Text code copyable>{text}</Text> },
     { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', render: text => <Tag color="success" icon={<CheckCircleOutlined />}>{text.toUpperCase()}</Tag> },
     { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', align: 'center', render: text => new Date(text).toLocaleString('vi-VN') }
   ];
@@ -96,7 +96,7 @@ export default function BankManagement() {
         cancelText="Hủy"
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="code" label="Mã Ngân Hàng (VD: VCB, TCB)" rules={[{ required: true }]}>
+          <Form.Item name="code" label="Mã Ngân Hàng" rules={[{ required: true }]}>
             <Input placeholder="VD: VCB" />
           </Form.Item>
           <Form.Item name="name" label="Tên Ngân Hàng" rules={[{ required: true }]}>

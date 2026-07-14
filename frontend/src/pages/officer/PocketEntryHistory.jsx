@@ -16,8 +16,8 @@ export default function PocketEntryHistory() {
   const columns = [
     { title: 'Mã tham chiếu', dataIndex: 'transRefId', key: 'transRefId', align: 'center', render: text => <Text code strong copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
     { title: 'Bước', dataIndex: 'stepOrder', key: 'stepOrder', align: 'center', render: text => <Tag color="purple">Bước {text}</Tag> },
-    { title: 'Ví Nợ', dataIndex: 'debit', key: 'debit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Ví Có', dataIndex: 'credit', key: 'credit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Ví Gửi', dataIndex: 'debit', key: 'debit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
+    { title: 'Ví Nhận', dataIndex: 'credit', key: 'credit', align: 'center', render: text => <Text copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
     { title: 'Số tiền', dataIndex: 'amount', key: 'amount', align: 'right', render: text => <Text strong style={{ color: '#0ea5e9' }}>{(text ?? 0).toLocaleString()}</Text> },
     { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', render: text => {
         if (text === 'settled') return <Tag color="success" icon={<CheckCircleOutlined />}>HOÀN TẤT</Tag>;
@@ -105,7 +105,7 @@ export default function PocketEntryHistory() {
             size="large"
           />
           <Input.Search 
-            placeholder="Debit Pocket..." 
+            placeholder="Tìm Ví Gửi..." 
             allowClear
             onSearch={val => {
               setSearchDebit(val);
@@ -116,7 +116,7 @@ export default function PocketEntryHistory() {
             size="large"
           />
           <Input.Search 
-            placeholder="Credit Pocket..." 
+            placeholder="Tìm Ví Nhận..." 
             allowClear
             onSearch={val => {
               setSearchCredit(val);

@@ -28,10 +28,12 @@ module.exports = {
       const result = services.map(s => {
         const def = defMap[s.id];
         let amountField = 'AMOUNT';
-        if (def && def.amountField) {
-          amountField = def.amountField;
-        } else if (def && def.glSteps && def.glSteps.length > 0) {
-          amountField = def.glSteps[0].amount;
+        if (s.fieldBuilder) {
+          const amountFb = s.fieldBuilder.find(f => f.name === 'AMOUNT' && f.source === 'parameters') 
+                        || s.fieldBuilder.find(f => f.datatype === 'number' && f.source === 'parameters');
+          if (amountFb) {
+            amountField = amountFb.variable;
+          }
         }
         return {
           id: s.id,

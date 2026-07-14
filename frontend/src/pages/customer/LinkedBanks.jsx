@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
-import { Card, Typography, List, Button, Modal, Form, Input, InputNumber, message, Tag, Space, Alert, Steps, Row, Col, Spin, Radio, Result, Select } from 'antd';
+import { Card, Typography, List, Button, Modal, Form, Input, InputNumber, message, Tag, Space, Alert, Steps, Row, Col, Spin, Radio, Result, Select, Divider } from 'antd';
 import { PlusOutlined, BankOutlined, CreditCardOutlined, SafetyCertificateOutlined, ArrowUpOutlined, ArrowDownOutlined, ArrowRightOutlined, LockOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { SocketContext } from '../../context/SocketContext';
 import { useNavigate } from 'react-router-dom';
@@ -114,6 +114,9 @@ export default function LinkedBanks() {
     setPreviewData(null);
     setTransRefId(null);
     transForm.resetFields();
+    transForm.setFieldsValue({
+      description: action === 'deposit' ? 'Nạp tiền từ ngân hàng' : 'Rút tiền về thẻ'
+    });
     pinForm.resetFields();
     setIsTransModalVisible(true);
   };
@@ -142,7 +145,8 @@ export default function LinkedBanks() {
         serviceId: svcConfig?.id,
         transData: {
           [bankLinkField]: selectedLink.id,
-          [amountField]: values.amount
+          [amountField]: values.amount,
+          DESCRIPTION: values.description
         },
       });
       const data = res.data.data;
@@ -151,7 +155,10 @@ export default function LinkedBanks() {
       // Confirm ngay lập tức
       await axios.post('/api/customer/transaction/confirm', { transRefId: data.transRefId });
       
-      setPreviewData(data.preview);
+      setPreviewData({
+        ...data.preview,
+        description: values.description
+      });
       setTransStep(1); // Chuyển sang bước xác nhận & PIN
     } catch (error) {
       message.error(error.response?.data?.message || 'Lỗi tạo giao dịch');
@@ -169,9 +176,27 @@ export default function LinkedBanks() {
       });
       setTransStep(2); // Chuyển sang bước hoàn thành
       fetchLinksAndBalance(); // Cập nhật số dư
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Sai mã PIN hoặc giao dịch thất bại');
-      pinForm.resetFields();
+    } catch (err) {
+      let errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message || 'Mã PIN không đúng hoặc giao dịch thất bại';
+      const rawError = errorMsg;
+      
+      if (errorMsg.includes(': ')) {
+        errorMsg = errorMsg.substring(errorMsg.indexOf(': ') + 2);
+      }
+      
+      if (rawError.includes('PIN_LOCKED') || rawError.includes('INVALID_STATUS')) {
+        Modal.error({
+          title: 'Giao dịch thất bại',
+          content: errorMsg,
+          okText: 'Về trang chủ',
+          onOk: () => {
+            navigate('/app/home');
+          }
+        });
+      } else {
+        message.error(errorMsg);
+        pinForm.resetFields();
+      }
     } finally {
       setLoading(false);
     }
@@ -322,6 +347,13 @@ export default function LinkedBanks() {
                   min={10000}
                 />
               </Form.Item>
+              <Form.Item name="description" label="Ghi chú">
+                <Input.TextArea
+                  rows={2}
+                  size="large"
+                  maxLength={100}
+                />
+              </Form.Item>
               <Button type="primary" htmlType="submit" size="large" block loading={loading} icon={<ArrowRightOutlined />} style={{ background: '#0ea5e9', marginTop: 16 }}>
                 Tiếp tục
               </Button>
@@ -335,16 +367,33 @@ export default function LinkedBanks() {
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
                   <Text type="secondary">Mã giao dịch: {transRefId}</Text>
                 </div>
-                {previewData.map((item, idx) => (
-                  <Row key={idx} style={{ marginBottom: 8, fontSize: 14 }}>
-                    <Col span={12}><Text type="secondary">{item.label}</Text></Col>
-                    <Col span={12} style={{ textAlign: 'right' }}>
-                      <Text strong style={{ color: item.isHighlight ? '#cf1322' : 'inherit' }}>
-                        {item.value}
-                      </Text>
-                    </Col>
-                  </Row>
-                ))}
+                <Row style={{ marginBottom: 8, fontSize: 14 }}>
+                  <Col span={12}><Text type="secondary">Số tiền giao dịch</Text></Col>
+                  <Col span={12} style={{ textAlign: 'right' }}>
+                    <Text strong>{(previewData.amount || 0).toLocaleString()} {previewData.currency}</Text>
+                  </Col>
+                </Row>
+                <Row style={{ marginBottom: 8, fontSize: 14 }}>
+                  <Col span={12}><Text type="secondary">Phí giao dịch</Text></Col>
+                  <Col span={12} style={{ textAlign: 'right' }}>
+                    <Text strong>{(previewData.fee || 0).toLocaleString()} {previewData.currency}</Text>
+                  </Col>
+                </Row>
+                <Row style={{ marginBottom: 8, fontSize: 14 }}>
+                  <Col span={12}><Text type="secondary">Ghi chú</Text></Col>
+                  <Col span={12} style={{ textAlign: 'right' }}>
+                    <Text strong>{previewData.description}</Text>
+                  </Col>
+                </Row>
+                <Divider style={{ margin: '8px 0' }} />
+                <Row style={{ marginBottom: 8, fontSize: 14 }}>
+                  <Col span={12}><Text type="secondary">Tổng thanh toán</Text></Col>
+                  <Col span={12} style={{ textAlign: 'right' }}>
+                    <Text strong style={{ color: '#cf1322' }}>
+                      {(previewData.totalAmount || 0).toLocaleString()} {previewData.currency}
+                    </Text>
+                  </Col>
+                </Row>
               </Card>
             )}
 

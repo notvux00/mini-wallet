@@ -271,7 +271,6 @@ module.exports = {
     
     // Ghi đè phí vào TRANSBODY
     TRANSBODY.FEE = calculatedFee;
-    TRANSBODY.DEBITFEE = calculatedFee;
     TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee;
 
     // IN RA LOG ĐỂ KIỂM TRA TRANSBODY TỪNG BƯỚC
@@ -469,7 +468,6 @@ module.exports = {
       }
     }
     TRANSBODY.FEE = calculatedFee;
-    TRANSBODY.DEBITFEE = calculatedFee;
     const discountValue = Number(TRANSBODY.DISCOUNT) || 0;
     TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee - discountValue;
     // ----------------------------------------------------

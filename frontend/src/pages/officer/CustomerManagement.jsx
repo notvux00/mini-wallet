@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
 import { Card, Typography, Table, Button, Space, Modal, Form, InputNumber, Input, message, Row, Col, Select } from 'antd';
 const { Option } = Select;
-import { DollarOutlined, PlusOutlined, BankOutlined } from '@ant-design/icons';
+import { DollarOutlined, PlusOutlined, BankOutlined, WalletOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 import { SocketContext } from '../../context/SocketContext';
@@ -85,17 +85,17 @@ export default function CustomerManagement() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [form] = Form.useForm();
   
-  const [bankPockets, setBankPockets] = useState([]);
+  const [otcPockets, setOtcPockets] = useState([]);
   const [cashInService, setCashInService] = useState(null);
   const [executing, setExecuting] = useState(false);
 
   useEffect(() => {
-    // Fetch bank pockets and cash-in service config
+    // Fetch OTC pockets (System) and cash-in service config
     const fetchConfigs = async () => {
       try {
-        const bankRes = await axios.post('/api/officer/banks/list', {});
-        if (bankRes.data?.data?.items) {
-          setBankPockets(bankRes.data.data.items);
+        const pocketRes = await axios.post('/api/officer/pockets/list', { limit: 100, client: 'system' });
+        if (pocketRes.data?.data?.items) {
+          setOtcPockets(pocketRes.data.data.items);
         }
 
         const serviceRes = await axios.post('/api/officer/services/list', {});
@@ -147,7 +147,7 @@ export default function CustomerManagement() {
       const transData = {
         [phoneFieldName]: selectedCustomer.phone,
         [amountFieldName]: values.amount,
-        [bankFieldName]: values.bankPocketId,
+        [bankFieldName]: values.sourcePocketId,
         description: values.note
       };
 
@@ -233,17 +233,17 @@ export default function CustomerManagement() {
             </div>
 
             <Form.Item 
-              label={<Text strong>Trích từ Ví Ngân Hàng (Nguồn)</Text>} 
-              name="bankPocketId" 
-              rules={[{ required: true, message: 'Vui lòng chọn ví ngân hàng!' }]}
+              label={<Text strong>Trích từ Két tiền mặt quầy (Nguồn)</Text>} 
+              name="sourcePocketId" 
+              rules={[{ required: true, message: 'Vui lòng chọn két tiền mặt!' }]}
             >
-              <Select size="large" placeholder="-- Chọn Ngân hàng --">
-                {bankPockets.map(bank => bank.pocket ? (
-                  <Option key={bank.pocket.id} value={bank.pocket.id}>
-                    <BankOutlined style={{ marginRight: 8, color: '#0ea5e9' }} />
-                    {bank.name} - {bank.code} (Dư: {bank.pocket.balance.toLocaleString('vi-VN')})
+              <Select size="large" placeholder="-- Chọn Két tiền mặt --">
+                {otcPockets.map(pocket => (
+                  <Option key={pocket.id} value={pocket.id}>
+                    <WalletOutlined style={{ marginRight: 8, color: '#0ea5e9' }} />
+                    {pocket.name || 'Không tên'} - {formatId(pocket.id)} (Dư: {pocket.balance.toLocaleString('vi-VN')})
                   </Option>
-                ) : null)}
+                ))}
               </Select>
             </Form.Item>
 

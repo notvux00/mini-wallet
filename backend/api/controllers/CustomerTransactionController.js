@@ -14,15 +14,6 @@ module.exports = {
         clientType: 'customer'
       });
 
-      if (result.preview && !Array.isArray(result.preview)) {
-        const p = result.preview;
-        result.preview = [
-          { label: 'Số tiền giao dịch', value: `${(p.amount || 0).toLocaleString()} ${p.currency || 'VND'}` },
-          { label: 'Phí giao dịch', value: `${(p.fee || 0).toLocaleString()} ${p.currency || 'VND'}` },
-          { label: 'Tổng tiền', value: `${(p.totalAmount || 0).toLocaleString()} ${p.currency || 'VND'}`, isHighlight: true }
-        ];
-      }
-
       return res.ok(result);
     } catch (error) {
       sails.log.error(error);

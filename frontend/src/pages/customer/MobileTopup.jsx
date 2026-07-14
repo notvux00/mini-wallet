@@ -144,7 +144,7 @@ export default function MobileTopup() {
         message.error(response.data?.msg || 'Giao dịch không thành công.');
       }
     } catch (err) {
-      let errorMsg = err.response?.data?.data?.message || err.response?.data?.message || 'Mã PIN không đúng hoặc lỗi hệ thống.';
+      let errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message || 'Mã PIN không đúng hoặc lỗi hệ thống.';
       const rawError = errorMsg;
       
       if (errorMsg.includes(': ')) {

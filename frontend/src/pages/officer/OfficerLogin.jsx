@@ -13,8 +13,14 @@ import { AuthContext } from '../../context/AuthContext';
 export default function OfficerLogin() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { login } = useContext(AuthContext);
+  const { login, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (user && user.role === 'officer') {
+      navigate('/officer/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (values) => {
     setLoading(true);

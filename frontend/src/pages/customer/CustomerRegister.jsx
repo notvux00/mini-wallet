@@ -7,11 +7,19 @@ const { Title, Text } = Typography;
 
 import { useState } from 'react';
 import axios from '../../utils/axios';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function CustomerRegister() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const { user } = React.useContext(AuthContext);
+
+  React.useEffect(() => {
+    if (user && user.role === 'customer') {
+      navigate('/app/home');
+    }
+  }, [user, navigate]);
 
   const handleRegister = async (values) => {
     setLoading(true);

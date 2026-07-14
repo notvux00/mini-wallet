@@ -13,8 +13,14 @@ import { AuthContext } from '../../context/AuthContext';
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { login } = useContext(AuthContext);
+  const { login, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (user && user.role === 'customer') {
+      navigate('/app/home');
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (values) => {
     setLoading(true);

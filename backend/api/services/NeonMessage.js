@@ -222,27 +222,27 @@ module.exports = {
       if (tf.isRequired && (TRANSBODY[tf.fieldName] === undefined || TRANSBODY[tf.fieldName] === null || TRANSBODY[tf.fieldName] === '')) {
         throw new Error(`${tf.errorCode}: ${tf.errorMessage}`);
       }
-    }
-
-    // 5. Xử lý TransValidation (Ví dụ: validateReceiverIsNotSender, validateMinAmount)
-    const validations = await TransValidation.find({ service: serviceId }).sort('order ASC');
-    for (const val of validations) {
-      if (val.validateFunc === 'validateReceiverIsNotSender') {
-        if (TRANSBODY.SENDERID && TRANSBODY.RECEIVERID && TRANSBODY.SENDERID === TRANSBODY.RECEIVERID) {
-          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+      
+      const val = TRANSBODY[tf.fieldName];
+      if (val !== undefined && val !== null && val !== '') {
+        if (tf.fieldFormat === 'number' && isNaN(Number(val))) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Phải là kiểu số)`);
         }
-      } else if (val.validateFunc === 'validateMinAmount') {
-        const parts = val.validateFields.split(':'); // AMOUNT:10000
-        const amountField = parts[0];
-        const minVal = parseInt(parts[1], 10) || 0;
-        if (TRANSBODY[amountField] !== undefined && Number(TRANSBODY[amountField]) < minVal) {
-          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        if (tf.fieldFormat === 'objectId' && !/^[0-9a-fA-F]{24}$/.test(String(val))) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Mã định danh không hợp lệ)`);
+        }
+
+        const strVal = String(val);
+        if (tf.minLength && strVal.length < tf.minLength) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Tối thiểu ${tf.minLength} ký tự)`);
+        }
+        if (tf.maxLength && strVal.length > tf.maxLength) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Tối đa ${tf.maxLength} ký tự)`);
         }
       }
-      // checkBalance sẽ được verify lại kỹ ở bước 3, nhưng có thể check nhanh ở đây nếu muốn
     }
 
-    // 6. Tính phí động dựa trên cấu hình service
+    // 5. Tính phí động dựa trên cấu hình service (Normalize Amount first)
     let amountField = 'AMOUNT';
     const transDef = await TransDefinition.findOne({ service: serviceId });
     if (transDef && transDef.glSteps && transDef.glSteps.length > 0) {
@@ -251,10 +251,14 @@ module.exports = {
       amountField = Object.keys(TRANSBODY).find(k => k.includes('AMOUNT') || k === 'SOTIEN') || 'AMOUNT';
     }
     
-    const amountValue = Number(TRANSBODY[amountField]) || Number(TRANSBODY['AMOUNT']) || 0;
+    const amountValue = Number(TRANSBODY[amountField]) || Number(TRANSBODY['AMOUNT']) || Number(TRANSBODY['amount']) || 0;
     
-    // [QUAN TRỌNG] Đảm bảo biến động (Ví dụ: SO_TIEN_HOA_DON) được nạp giá trị để Bút toán (GL Step) đọc được
+    // [QUAN TRỌNG] Đảm bảo biến động (Ví dụ: SO_TIEN_HOA_DON) được nạp giá trị để Bút toán (GL Step) và Validation đọc được
     TRANSBODY[amountField] = amountValue;
+    // Đồng thời gán vào biến AMOUNT chuẩn xác để TransValidation bắt được nếu nó dùng field name là AMOUNT
+    if (amountField !== 'AMOUNT') {
+      TRANSBODY['AMOUNT'] = amountValue;
+    }
     
     let calculatedFee = 0;
     
@@ -272,6 +276,31 @@ module.exports = {
     // Ghi đè phí vào TRANSBODY
     TRANSBODY.FEE = calculatedFee;
     TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee;
+
+    // 6. Xử lý TransValidation (Ví dụ: validateReceiverIsNotSender, validateMinAmount)
+    const validations = await TransValidation.find({ service: serviceId }).sort('order ASC');
+    for (const val of validations) {
+      if (val.validateFunc === 'validateReceiverIsNotSender') {
+        if (TRANSBODY.SENDERID && TRANSBODY.RECEIVERID && TRANSBODY.SENDERID === TRANSBODY.RECEIVERID) {
+          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        }
+      } else if (val.validateFunc === 'validateMinAmount') {
+        const parts = val.validateFields.split(':'); // AMOUNT:10000
+        const validateAmountField = parts[0];
+        const minVal = parseInt(parts[1], 10) || 0;
+        if (TRANSBODY[validateAmountField] !== undefined && Number(TRANSBODY[validateAmountField]) < minVal) {
+          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        }
+      } else if (val.validateFunc === 'validateMaxAmount') {
+        const parts = val.validateFields.split(':');
+        const validateAmountField = parts[0];
+        const maxVal = parseInt(parts[1], 10) || 0;
+        if (TRANSBODY[validateAmountField] !== undefined && Number(TRANSBODY[validateAmountField]) > maxVal) {
+          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        }
+      }
+      // checkBalance sẽ được verify lại kỹ ở bước 3, nhưng có thể check nhanh ở đây nếu muốn
+    }
 
     // IN RA LOG ĐỂ KIỂM TRA TRANSBODY TỪNG BƯỚC
     sails.log.info('--- [TEST] TRANSBODY ĐÃ ĐƯỢC TẠO ---');
@@ -433,6 +462,24 @@ module.exports = {
       if (tf.isRequired && (TRANSBODY[tf.fieldName] === undefined || TRANSBODY[tf.fieldName] === null || TRANSBODY[tf.fieldName] === '')) {
         throw new Error(`${tf.errorCode}: ${tf.errorMessage}`);
       }
+      
+      const val = TRANSBODY[tf.fieldName];
+      if (val !== undefined && val !== null && val !== '') {
+        if (tf.fieldFormat === 'number' && isNaN(Number(val))) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Phải là kiểu số)`);
+        }
+        if (tf.fieldFormat === 'objectId' && !/^[0-9a-fA-F]{24}$/.test(String(val))) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Mã định danh không hợp lệ)`);
+        }
+
+        const strVal = String(val);
+        if (tf.minLength && strVal.length < tf.minLength) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Tối thiểu ${tf.minLength} ký tự)`);
+        }
+        if (tf.maxLength && strVal.length > tf.maxLength) {
+          throw new Error(`${tf.errorCode}: ${tf.errorMessage} (Tối đa ${tf.maxLength} ký tự)`);
+        }
+      }
     }
     
     // Validate TransValidation
@@ -447,6 +494,13 @@ module.exports = {
         const amountField = parts[0];
         const minVal = parseInt(parts[1], 10) || 0;
         if (TRANSBODY[amountField] !== undefined && Number(TRANSBODY[amountField]) < minVal) {
+          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        }
+      } else if (val.validateFunc === 'validateMaxAmount') {
+        const parts = val.validateFields.split(':');
+        const amountField = parts[0];
+        const maxVal = parseInt(parts[1], 10) || 0;
+        if (TRANSBODY[amountField] !== undefined && Number(TRANSBODY[amountField]) > maxVal) {
           throw new Error(`${val.errorCode}: ${val.errorMessage}`);
         }
       }

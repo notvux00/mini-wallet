@@ -21,7 +21,9 @@ export default function ServiceBuilder() {
   const [validations, setValidations] = useState({
     notSameSender: true,
     checkBalance: true,
-    minAmount: false
+    minAmount: false,
+    maxAmount: false,
+    maxAmountValue: 50000000
   });
   const [glSteps, setGlSteps] = useState([
     { id: '1', amountVar: undefined, from: undefined, to: undefined, title: 'Chuyển tiền gốc' }
@@ -74,6 +76,11 @@ export default function ServiceBuilder() {
                 if (v.validateFunc === 'validateReceiverIsNotSender') ruleMap.notSameSender = true;
                 if (v.validateFunc === 'validateSenderAccountSufficiency') ruleMap.checkBalance = true;
                 if (v.validateFunc === 'validateMinAmount') ruleMap.minAmount = true;
+                if (v.validateFunc === 'validateMaxAmount') {
+                  ruleMap.maxAmount = true;
+                  const parts = v.validateFields.split(':');
+                  ruleMap.maxAmountValue = parseInt(parts[1], 10) || 50000000;
+                }
               });
               setValidations(prev => ({ ...prev, ...ruleMap }));
             }
@@ -488,6 +495,29 @@ export default function ServiceBuilder() {
                 <br/><Text type="secondary">Giao dịch phải lớn hơn 10.000 VND.</Text>
               </div>
               <Switch checked={validations.minAmount} onChange={v => setValidations({...validations, minAmount: v})} />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>Hạn mức tối đa</Text>
+                  <br/><Text type="secondary">Giới hạn số tiền lớn nhất trong một giao dịch.</Text>
+                </div>
+                <Switch checked={validations.maxAmount} onChange={v => setValidations({...validations, maxAmount: v})} />
+              </div>
+              {validations.maxAmount && (
+                <div style={{ marginTop: 16 }}>
+                  <Text strong>Nhập số tiền tối đa (VND):</Text>
+                  <InputNumber 
+                    style={{ width: '100%', marginTop: 8 }} 
+                    size="large"
+                    value={validations.maxAmountValue}
+                    onChange={val => setValidations({...validations, maxAmountValue: val})}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </div>
+              )}
             </div>
           </Space>
         </Card>

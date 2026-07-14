@@ -336,6 +336,20 @@ function _buildValidations(rules, serviceId, amountField) {
     });
   }
 
+  if (rules.maxAmount) {
+    const threshold = rules.maxAmountValue || 50000000;
+    validations.push({
+      service: serviceId,
+      validateFunc: 'validateMaxAmount',
+      validateFields: `${amountField}:${threshold}`, // dùng tên biến động
+      order: order++,
+      errorCode: 5033, // SVC_ERR.MAX_AMOUNT
+      errorMessage: `Số tiền giao dịch tối đa là ${threshold.toLocaleString('vi-VN')}đ.`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
   return validations;
 }
 
@@ -564,8 +578,14 @@ module.exports = {
             await db.collection('transfield').insertMany(transFields, { session });
           }
 
+          // Xác định biến số tiền chính (thường dùng trong validation)
+          let amountField = 'AMOUNT';
+          if (glSteps && glSteps.length > 0) {
+            amountField = glSteps[0].amountVar || 'AMOUNT';
+          }
+
           // Tạo lại TransValidation
-          const validations = _buildValidations(rules, id);
+          const validations = _buildValidations(rules, id, amountField);
           if (validations.length > 0) {
             await db.collection('transvalidation').insertMany(validations, { session });
           }

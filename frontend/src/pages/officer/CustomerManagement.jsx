@@ -30,7 +30,7 @@ export default function CustomerManagement() {
   
   // Find cash-in service
   const cInService = servicesData?.items?.find(s => s.action === 'cashIn' && s.status === 'active');
-  const { data: cashInServiceDetail } = useServiceDetail(cInService?.id);
+  const { data: cashInServiceDetail } = useServiceDetail({ id: cInService?.id }, { enabled: !!cInService?.id });
 
   // Mutations
   const executeTransMutation = useExecuteTransaction();

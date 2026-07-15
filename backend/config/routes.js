@@ -30,7 +30,7 @@ module.exports.routes = {
 
   // 3. API lấy số dư và lịch sử giao dịch của Customer
   'POST /api/customer/dashboard': 'CustomerController.dashboard',
-  'POST /api/customer/billers/list': 'CustomerBillerController.list',
+
   'POST /api/customer/transactions/history': 'CustomerTransactionController.history',
   'POST /api/customer/services/list': 'CustomerServiceController.list', // Danh sách service active cho Customer
   'POST /api/customer/transaction/request': 'CustomerTransactionController.request',

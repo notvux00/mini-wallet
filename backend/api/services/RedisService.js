@@ -19,9 +19,13 @@ module.exports = {
       }
       redisClient = new Redis(redisUrl, {
         tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
-        maxRetriesPerRequest: 3,
-        commandTimeout: 3000,
-        enableOfflineQueue: false
+        maxRetriesPerRequest: 10,
+        commandTimeout: 15000,
+        connectTimeout: 20000,
+        enableOfflineQueue: true,
+        retryStrategy(times) {
+          return Math.min(times * 500, 5000); // Retry reconnecting up to 5s max delay
+        }
       });
 
       redisClient.on('connect', () => {

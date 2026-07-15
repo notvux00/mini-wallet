@@ -32,10 +32,7 @@ module.exports.policies = {
     'login': true,
   },
 
-  'OfficerPocketController': {
-    '*': ['isAuthorized', 'isOfficer'],
-    'list': true
-  },
+
 
   'CustomerController': {
     '*': 'isAuthorized',

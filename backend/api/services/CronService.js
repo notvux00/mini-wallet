@@ -127,13 +127,19 @@ module.exports = {
                 sails.log.info(`[Cron] Retry Biller thành công cho giao dịch ${trail.transRefId}`);
               } else {
                 await TransactionTrail.updateOne({ id: trail.id }).set({ billerSyncStatus: 'failed', updatedAt: Date.now() });
-                sails.log.error(`[Cron] Giao dịch ${trail.transRefId} bị Biller từ chối khi Retry.`);
+                sails.log.error(`[Cron] Giao dịch ${trail.transRefId} bị Biller từ chối khi Retry. Tiến hành hoàn tiền...`);
+                if (sails.services.neonmessage && sails.services.neonmessage.processBillerRefund) {
+                  await sails.services.neonmessage.processBillerRefund(trail.transRefId);
+                }
               }
             } catch (err) {
               const newRetries = (trail.billerSyncRetries || 0) + 1;
               if (newRetries > 10) {
                  await TransactionTrail.updateOne({ id: trail.id }).set({ billerSyncStatus: 'failed', billerSyncRetries: newRetries, updatedAt: Date.now() });
-                 sails.log.error(`[Cron] ALERT: Giao dịch ${trail.transRefId} (Biller ${trail.billerCode}) Retry thất bại 10 lần! Cần Kế toán hoàn tiền thủ công.`);
+                 sails.log.error(`[Cron] ALERT: Giao dịch ${trail.transRefId} Retry thất bại 10 lần! Hệ thống tự động hoàn tiền...`);
+                 if (sails.services.neonmessage && sails.services.neonmessage.processBillerRefund) {
+                    await sails.services.neonmessage.processBillerRefund(trail.transRefId);
+                 }
               } else {
                  await TransactionTrail.updateOne({ id: trail.id }).set({ billerSyncRetries: newRetries, updatedAt: Date.now() });
               }

@@ -19,7 +19,12 @@ module.exports = {
       const allTrans = await Transaction.find();
 
       let totalVolume = 0;
-      let totalFees = 0;
+      
+      const feePocket = await Pocket.findOne({ 
+        client: 'system', 
+        name: ['Ví thu tiền phí', 'Ví Phí Hệ Thống'] 
+      });
+      let totalFees = feePocket ? feePocket.balance : 0;
       let statusCount = { done: 0, failed: 0, pending: 0, processing: 0 };
       
       const last7DaysData = {};
@@ -37,10 +42,9 @@ module.exports = {
           statusCount[t.status] = 1;
         }
 
-        // Only count done for volume/fees
+        // Only count done for volume
         if (t.status === 'done') {
           totalVolume += (t.amount || 0);
-          totalFees += (t.fee || 0);
         }
 
         // 7 days chart

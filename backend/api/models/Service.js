@@ -13,7 +13,7 @@ module.exports = {
     },
     action: {
       type: 'string',
-      isIn: ['none', 'billerTrans', 'cashIn', 'bankTopup', 'bankWithdraw'],
+      isIn: ['none', 'billerTrans', 'cashIn', 'bankDeposit', 'bankWithdraw'],
       defaultsTo: 'none',
     },
     actionParams: {

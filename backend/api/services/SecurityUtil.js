@@ -43,6 +43,16 @@ module.exports = {
     } catch (error) {
       throw new Error('INVALID_TOKEN');
     }
+  },
+
+  // 4. RANDOM GENERATOR
+  // Tạo chuỗi số ngẫu nhiên với độ dài cho trước
+  generateRandomNumber: function(length) {
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += crypto.randomInt(0, 10);
+    }
+    return result;
   }
 
 };

@@ -19,8 +19,6 @@ module.exports.routes = {
   *                                                                          *
   ***************************************************************************/
 
-  '/': { view: 'pages/homepage' },
-
   // 1. Nhóm API Xác thực cho Khách hàng
   'POST /api/auth/register': 'AuthController.register',
   'POST /api/auth/login': 'AuthController.login',

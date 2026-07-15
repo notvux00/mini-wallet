@@ -24,10 +24,6 @@ export default function CustomerDashboard() {
   const { user } = useContext(AuthContext);
   const { io } = useContext(SocketContext);
 
-  if (!user) {
-    return <Navigate to="/app/login" replace />;
-  }
-
   const [dashboardData, setDashboardData] = useState({
     balance: 0,
     income: 0,
@@ -37,6 +33,7 @@ export default function CustomerDashboard() {
 
   const fetchDashboard = async () => {
     try {
+      if (!user) return;
       const response = await axios.post('/api/customer/dashboard');
       if (response.data.err === 0 || response.data.err === 200) {
         setDashboardData(response.data.data);
@@ -47,25 +44,30 @@ export default function CustomerDashboard() {
   };
 
   useEffect(() => {
-    fetchDashboard();
-  }, []);
+    if (user) fetchDashboard();
+  }, [user]);
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', (msg) => {
+      const handleTransactionUpdate = (msg) => {
         message.info('Tài khoản của bạn vừa có biến động số dư!');
         if (msg?.transaction?.status === 'done') {
           message.success('Có cập nhật giao dịch mới!');
         }
         fetchDashboard();
-      });
+      };
+      
+      io.socket.on('transaction_updated', handleTransactionUpdate);
+      
+      return () => {
+        io.socket.off('transaction_updated', handleTransactionUpdate);
+      };
     }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    };
   }, [io]);
+
+  if (!user) {
+    return <Navigate to="/app/login" replace />;
+  }
 
   const { balance, income: monthlyIncome, expense: monthlyExpense, recentTransactions: history } = dashboardData;
 

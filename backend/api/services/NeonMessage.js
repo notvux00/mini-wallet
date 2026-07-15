@@ -170,8 +170,8 @@ module.exports = {
       const billerIdField = service.actionParams?.billerIdField || 'BILLERID';
       const customerCodeField = service.actionParams?.customerCodeField || 'BILLCODE';
 
-      const billerCode = transData[billerIdField] || transData.BILLER_CODE;
-      const customerCode = transData[customerCodeField] || transData.CUSTOMER_CODE;
+      const billerCode = TRANSBODY[billerIdField] || TRANSBODY.BILLER_CODE;
+      const customerCode = TRANSBODY[customerCodeField] || TRANSBODY.CUSTOMER_CODE;
       
       if (!billerCode || !customerCode) {
         throw new Error(`BILLER_ERR.MISSING_DATA: Không tìm thấy Biller Code (${billerIdField}) hoặc Customer Code (${customerCodeField}).`);
@@ -181,6 +181,8 @@ module.exports = {
       if (!biller) throw new Error('BILLER_ERR.NOT_FOUND: Biller không tồn tại.');
       if (biller.status !== 'active') throw new Error('BILLER_ERR.INACTIVE: Biller đang bị khóa.');
 
+      // Inject Biller Pocket to TRANSBODY so GL Steps can use it as Credit destination
+      TRANSBODY['BILLERPOCKET'] = biller.pocket;
       if (biller.inquiryUrl) {
         try {
           // Xây dựng Payload động dựa trên Key Name Officer cấu hình
@@ -260,9 +262,9 @@ module.exports = {
       TRANSBODY['AMOUNT'] = amountValue;
     }
     
-    let calculatedFee = 0;
+    let calculatedFee = Number(TRANSBODY.FEE) || 0;
     
-    if (service.fee) {
+    if (service.fee && service.fee.type) {
       if (service.fee.type === 'fixed') {
         calculatedFee = Number(service.fee.value) || 0;
       } else if (service.fee.type === 'percent') {
@@ -273,10 +275,23 @@ module.exports = {
       }
     }
     
-    // Ghi đè phí vào TRANSBODY
-    TRANSBODY.FEE = calculatedFee;
-    TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee;
+    // Tính chiết khấu (nếu có)
+    let calculatedDiscount = Number(TRANSBODY.DISCOUNT) || 0;
+    if (service.discount && service.discount.type) {
+      if (service.discount.type === 'fixed') {
+        calculatedDiscount = Number(service.discount.value) || 0;
+      } else if (service.discount.type === 'percent' || service.discount.type === 'percentage') {
+        calculatedDiscount = amountValue * ((Number(service.discount.value) || 0) / 100);
+        if (service.discount.max && calculatedDiscount > service.discount.max) {
+          calculatedDiscount = service.discount.max;
+        }
+      }
+    }
 
+    // Ghi đè phí và chiết khấu vào TRANSBODY
+    TRANSBODY.FEE = calculatedFee;
+    TRANSBODY.DISCOUNT = calculatedDiscount;
+    TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee - calculatedDiscount;
     // 6. Xử lý TransValidation (Ví dụ: validateReceiverIsNotSender, validateMinAmount)
     const validations = await TransValidation.find({ service: serviceId }).sort('order ASC');
     for (const val of validations) {
@@ -333,6 +348,7 @@ module.exports = {
       preview: {
         totalAmount: trail.totalAmount,
         fee: TRANSBODY.FEE,
+        discount: TRANSBODY.DISCOUNT,
         amount: Number(TRANSBODY[amountField]) || 0,
         currency: TRANSBODY.CURRENCY
       }
@@ -509,9 +525,9 @@ module.exports = {
     // Fee Re-calculation
     const txAmountField = transDef.amountField || (transDef.glSteps && transDef.glSteps[0] ? transDef.glSteps[0].amount : 'AMOUNT');
     const amountValue = Number(TRANSBODY[txAmountField]) || 0;
-    let calculatedFee = 0;
+    let calculatedFee = Number(TRANSBODY.FEE) || 0;
     
-    if (service.fee) {
+    if (service.fee && service.fee.type) {
       if (service.fee.type === 'fixed') {
         calculatedFee = Number(service.fee.value) || 0;
       } else if (service.fee.type === 'percent') {
@@ -580,6 +596,22 @@ module.exports = {
           if (!debitPocketInfo) {
             throw new Error(`SYS_ERR.POCKET_NOT_FOUND: Không tìm thấy ví Nợ ${debitPocketId}`);
           }
+          if (debitPocketInfo.state !== 'active' && debitPocketInfo.state !== 'inProgress') {
+            throw new Error(`SYS_ERR.POCKET_LOCKED: Ví Nợ đang bị khóa hoặc không hoạt động.`);
+          }
+
+          const creditObjectId = new (require('mongodb').ObjectId)(creditPocketId);
+          const creditPocketInfo = await pocketCollection.findOne(
+            { _id: { $in: [creditPocketId, creditObjectId] } },
+            { session }
+          );
+
+          if (!creditPocketInfo) {
+            throw new Error(`SYS_ERR.POCKET_NOT_FOUND: Không tìm thấy ví Có ${creditPocketId}`);
+          }
+          if (creditPocketInfo.state !== 'active' && creditPocketInfo.state !== 'inProgress') {
+            throw new Error(`SYS_ERR.POCKET_LOCKED: Ví Có đang bị khóa hoặc không hoạt động.`);
+          }
 
           const allowNegative = ['system', 'bank'].includes(debitPocketInfo.client);
           
@@ -607,12 +639,15 @@ module.exports = {
             { session }
           );
 
-          const creditObjectId = new (require('mongodb').ObjectId)(creditPocketId);
           const updatedCreditPocket = await pocketCollection.findOneAndUpdate(
             { _id: { $in: [creditPocketId, creditObjectId] } },
             { $inc: { balance: stepAmountValue } },
             { session, returnDocument: 'after' }
           );
+
+          if (!updatedCreditPocket) {
+            throw new Error(`SYS_ERR.CREDIT_FAILED: Ghi Có thất bại, ví không tồn tại hoặc bị lỗi.`);
+          }
 
           // Tính và cập nhật lại checksum cho Ví Có
           if (updatedCreditPocket) {
@@ -649,8 +684,8 @@ module.exports = {
           const billerIdField = service.actionParams?.billerIdField || 'BILLERID';
           const customerCodeField = service.actionParams?.customerCodeField || 'BILLCODE';
 
-          const billerCode = TRANSBODY[billerIdField] || transData[billerIdField] || transData.BILLER_CODE;
-          const customerCode = TRANSBODY[customerCodeField] || transData[customerCodeField] || transData.CUSTOMER_CODE;
+          const billerCode = TRANSBODY[billerIdField] || TRANSBODY.BILLER_CODE;
+          const customerCode = TRANSBODY[customerCodeField] || TRANSBODY.CUSTOMER_CODE;
           
           if (!billerCode) throw new Error('BILLER_ERR.MISSING_DATA: Thiếu Biller Code để thanh toán.');
 
@@ -683,7 +718,10 @@ module.exports = {
               // Thành công
               billerSyncStatus = 'success';
             } catch (error) {
-              sails.log.error('[Biller Adapter] Lỗi gọi Payment:', error.message);
+              const isTest = process.env.NODE_ENV === 'test' || (sails.config && sails.config.environment === 'test');
+              if (!isTest) {
+                sails.log.error('[Biller Adapter] Lỗi gọi Payment:', error.message);
+              }
               
               // Nếu Biller từ chối rõ ràng thì huỷ giao dịch (throw error)
               if (error.message.startsWith('BILLER_ERR.REJECTED')) {
@@ -691,7 +729,9 @@ module.exports = {
               }
               
               // Nếu lỗi mạng / Timeout -> Không huỷ giao dịch, đưa vào trạng thái pending để Retry
-              sails.log.warn('[Biller Adapter] Gặp lỗi mạng, chuyển trạng thái sang pending để Retry Cronjob xử lý.');
+              if (!isTest) {
+                sails.log.warn('[Biller Adapter] Gặp lỗi mạng, chuyển trạng thái sang pending để Retry Cronjob xử lý.');
+              }
               billerSyncStatus = 'pending';
             }
           }
@@ -758,22 +798,6 @@ module.exports = {
       // -------------------------------------------
     }
 
-    // Broadcast Real-time event since Waterline lifecycle doesn't trigger on native insert
-    if (sails.sockets) {
-      const socketTrans = {
-        id: createdTransactionId,
-        status: 'done'
-      };
-      
-      // Sử dụng blast để phát đi toàn bộ các client đang kết nối (đảm bảo không bị miss do join room fail)
-      sails.sockets.blast('transaction_updated', { transaction: socketTrans });
-      
-      // Vẫn giữ lại broadcast theo room cho chắc chắn
-      sails.sockets.broadcast('officer_room', 'transaction_updated', { transaction: socketTrans });
-      if (TRANSBODY.SENDERID) sails.sockets.broadcast(`pocket_room_${TRANSBODY.SENDERID}`, 'transaction_updated', { transaction: socketTrans });
-      if (TRANSBODY.RECEIVERID) sails.sockets.broadcast(`pocket_room_${TRANSBODY.RECEIVERID}`, 'transaction_updated', { transaction: socketTrans });
-    }
-
     return {
       transRefId: transRefId,
       status: 'SUCCESS',
@@ -783,6 +807,96 @@ module.exports = {
     
     } finally {
       await RedisService.del(`trx_lock:${transRefId}`);
+    }
+  },
+
+  processBillerRefund: async function (transRefId) {
+    const trx = await Transaction.findOne({ transRefId, status: 'done' });
+    if (!trx) return;
+    
+    const entries = await PocketEntry.find({ transRefId: transRefId });
+    if (!entries || entries.length === 0) return;
+
+    const db = Transaction.getDatastore().manager;
+    const pocketCollection = db.collection(Pocket.tableName);
+    const entryCollection = db.collection(PocketEntry.tableName);
+
+    const session = db.client.startSession();
+    try {
+      await session.withTransaction(async () => {
+        for (const entry of entries) {
+          const debitPocketId = entry.debit;
+          const creditPocketId = entry.credit;
+          const amount = entry.amount;
+
+          // Xử lý hoàn lại tiền cho ví Nguồn (debit) -> Cộng lại tiền
+          if (debitPocketId && debitPocketId !== 'null' && debitPocketId !== 'SYSTEM_POCKET_ID') {
+            const debitObjId = new (require('mongodb').ObjectId)(debitPocketId);
+            const updatedDebit = await pocketCollection.findOneAndUpdate(
+              { _id: { $in: [debitPocketId, debitObjId] } },
+              { $inc: { balance: amount } },
+              { session, returnDocument: 'after' }
+            );
+            if (!updatedDebit) throw new Error('Refund failed for debit pocket');
+            
+            const newDebitChecksum = SecurityUtil.generatePocketChecksum(
+              updatedDebit.balance !== undefined ? updatedDebit.balance : updatedDebit.value.balance,
+              updatedDebit.user !== undefined ? updatedDebit.user : updatedDebit.value.user
+            );
+            await pocketCollection.updateOne(
+              { _id: { $in: [debitPocketId, debitObjId] } },
+              { $set: { checksum: newDebitChecksum } },
+              { session }
+            );
+          }
+
+          // Xử lý trừ tiền lại ví Đích (credit) -> Trừ tiền
+          if (creditPocketId && creditPocketId !== 'null' && creditPocketId !== 'SYSTEM_POCKET_ID') {
+            const creditObjId = new (require('mongodb').ObjectId)(creditPocketId);
+            const updatedCredit = await pocketCollection.findOneAndUpdate(
+              { _id: { $in: [creditPocketId, creditObjId] }, balance: { $gte: amount } },
+              { $inc: { balance: -amount } },
+              { session, returnDocument: 'after' }
+            );
+            if (!updatedCredit) throw new Error('Refund failed for credit pocket - insufficient balance');
+            
+            const newCreditChecksum = SecurityUtil.generatePocketChecksum(
+              updatedCredit.balance !== undefined ? updatedCredit.balance : updatedCredit.value.balance,
+              updatedCredit.user !== undefined ? updatedCredit.user : updatedCredit.value.user
+            );
+            await pocketCollection.updateOne(
+              { _id: { $in: [creditPocketId, creditObjId] } },
+              { $set: { checksum: newCreditChecksum } },
+              { session }
+            );
+          }
+
+          // Thêm bút toán đảo (Reverse Entry)
+          const newStepOrder = entry.stepOrder + 100; // Để nó nằm sau
+          await entryCollection.insertOne({
+            transRefId: entry.transRefId,
+            stepOrder: newStepOrder,
+            debit: entry.credit,
+            credit: entry.debit,
+            amount: entry.amount,
+            status: 'done',
+            createdAt: new Date().getTime(),
+            updatedAt: new Date().getTime()
+          }, { session });
+        }
+
+        // Cập nhật trạng thái transaction
+        await db.collection(Transaction.tableName).updateOne(
+          { transRefId: trx.transRefId },
+          { $set: { status: 'refunded', description: trx.description + ' (ĐÃ HOÀN TIỀN)' } },
+          { session }
+        );
+      });
+      sails.log.info(`[Biller Refund] Hoàn tiền thành công cho giao dịch ${transRefId}`);
+    } catch (err) {
+      sails.log.error(`[Biller Refund] Lỗi hoàn tiền tự động cho giao dịch ${transRefId}`, err);
+    } finally {
+      session.endSession();
     }
   }
 };

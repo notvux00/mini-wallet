@@ -19,6 +19,7 @@ export default function LinkedBanks() {
   const [isLinkModalVisible, setIsLinkModalVisible] = useState(false);
   const [isOtpModalVisible, setIsOtpModalVisible] = useState(false);
   const [currentLinkId, setCurrentLinkId] = useState(null);
+  const [devOtp, setDevOtp] = useState('');
   const [linkForm] = Form.useForm();
   const [otpForm] = Form.useForm();
 
@@ -75,6 +76,7 @@ export default function LinkedBanks() {
     try {
       const response = await axios.post('/api/customer/bank/request-link', values);
       setCurrentLinkId(response.data.data.linkId);
+      if (response.data.data._devOtp) setDevOtp(response.data.data._devOtp);
       setIsLinkModalVisible(false);
       setIsOtpModalVisible(true);
       message.success('Vui lòng nhập mã OTP để xác thực');
@@ -308,7 +310,7 @@ export default function LinkedBanks() {
         cancelText="Hủy"
         destroyOnClose
       >
-        <Alert message="Mã OTP giả lập là: 123456" type="info" showIcon style={{ marginBottom: 16 }} />
+        <Alert message={devOtp ? `Mã OTP giả lập là: ${devOtp}` : "Đang chờ OTP gửi về số điện thoại..."} type="info" showIcon style={{ marginBottom: 16 }} />
         <Form form={otpForm} layout="vertical" onFinish={handleVerifyOtp}>
           <Form.Item name="otp" label="Nhập mã OTP gửi về điện thoại" rules={[{ required: true }]}>
             <Input.OTP length={6} />

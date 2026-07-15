@@ -42,6 +42,8 @@ module.exports.sockets = {
   *                                                                          *
   ***************************************************************************/
 
+  onlyAllowOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:5173', 'http://localhost:3000'],
+  
   // beforeConnect: function(handshake, proceed) {
   //
   //   // `true` allows the socket to connect.

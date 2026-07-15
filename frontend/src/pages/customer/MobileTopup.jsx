@@ -25,7 +25,7 @@ export default function MobileTopup() {
   const predefinedAmounts = [10000, 20000, 50000, 100000, 200000, 500000];
 
   const currentService = services.find(s => s.id === selectedServiceId) || services[0];
-  const discountPercent = currentService ? (Number(currentService.discount) || 0) : 0;
+  const discountPercent = currentService ? (Number(currentService.discount) || Number(currentService.actionParams?.discountRate) || 0) : 0;
 
   useEffect(() => {
     const fetchBillersAndServices = async () => {

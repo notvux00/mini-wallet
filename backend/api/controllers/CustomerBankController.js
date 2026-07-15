@@ -38,8 +38,20 @@ module.exports = {
         linkId = newLink.id;
       }
 
-      // Giả lập gửi OTP
-      return res.ok({ linkId: linkId }, 'Yêu cầu liên kết thành công. Vui lòng nhập OTP (123456).');
+      // Tạo OTP ngẫu nhiên 6 số
+      const otp = SecurityUtil.generateRandomNumber(6);
+      
+      // Lưu vào Redis (TTL = 5 phút)
+      const otpKey = `bank_otp:${linkId}`;
+      const lockSuccess = await RedisService.setnx(otpKey, otp, 300);
+      if (!lockSuccess) {
+        throw new Error('Hệ thống bận hoặc mã OTP của yêu cầu này vẫn còn hiệu lực. Vui lòng thử lại sau.');
+      }
+      
+      // Gửi OTP (Giả lập in ra console)
+      sails.log.info(`[SMS-MOCK] OTP liên kết thẻ ${cardNumber} của user ${customerId} là: ${otp}`);
+
+      return res.ok({ linkId: linkId, _devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined }, 'Yêu cầu liên kết thành công. Vui lòng nhập mã OTP vừa được gửi đến số điện thoại của bạn.');
     } catch (error) {
       sails.log.error('Lỗi requestLink:', error);
       return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
@@ -51,8 +63,11 @@ module.exports = {
       const { linkId, otp } = req.body;
       const customerId = req.user.id;
 
-      if (otp !== '123456') {
-        return res.error(respCode.BAD_REQUEST, 'Mã OTP không chính xác!');
+      const otpKey = `bank_otp:${linkId}`;
+      const savedOtp = await RedisService.get(otpKey);
+
+      if (!savedOtp || savedOtp !== otp) {
+        return res.error(respCode.BAD_REQUEST, 'Mã OTP không chính xác hoặc đã hết hạn!');
       }
 
       const link = await BankLink.findOne({ id: linkId, customer: customerId });

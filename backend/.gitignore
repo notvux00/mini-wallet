@@ -5,6 +5,8 @@
 #
 # > Files to exclude from your app's repo.
 #
+.env
+
 # This file (`.gitignore`) is only relevant if
 # you are using git.
 #

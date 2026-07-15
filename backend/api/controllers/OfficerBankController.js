@@ -41,18 +41,19 @@ module.exports = {
         checksum: 'TEMP' // Sẽ được cập nhật sau nếu có logic
       }).fetch();
 
-      // Fix checksum for the new pocket
-      const crypto = require('crypto');
-      const hashStr = `${newPocket.id}|${newPocket.client}|${newPocket.currency}|${newPocket.balance}`;
-      const checksum = crypto.createHash('md5').update(hashStr).digest('hex');
-      await Pocket.updateOne({ id: newPocket.id }).set({ checksum: checksum });
-
       // 3. Tạo Bank map với Pocket
       const newBank = await Bank.create({
         code: code,
         name: name,
         pocket: newPocket.id
       }).fetch();
+
+      // 4. Cập nhật lại Pocket bao gồm user và checksum
+      const validChecksum = SecurityUtil.generatePocketChecksum(0, newBank.id);
+      await Pocket.updateOne({ id: newPocket.id }).set({
+        user: newBank.id,
+        checksum: validChecksum
+      });
 
       return res.ok(newBank, 'Tạo Ngân hàng mới thành công!');
     } catch (error) {

@@ -30,8 +30,8 @@ module.exports.security = {
 
   cors: {
     allRoutes: true,
-    allowOrigins: '*',
-    allowCredentials: false,
+    allowOrigins: process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000',
+    allowCredentials: true,
     allowRequestHeaders: 'content-type, authorization',
    },
 

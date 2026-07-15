@@ -294,6 +294,22 @@ module.exports = {
     TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee - calculatedDiscount;
     // 6. Xử lý TransValidation (Ví dụ: validateReceiverIsNotSender, validateMinAmount)
     const validations = await TransValidation.find({ service: serviceId }).sort('order ASC');
+    
+    // Đánh giá DB-related validations
+    for (const val of validations) {
+      if (val.validateFunc === 'validateMaintainBalance') {
+        const parts = val.validateFields.split(':');
+        const maintainVal = parseInt(parts[1], 10) || 50000;
+        if (TRANSBODY.SENDERID) {
+           const senderPocket = await Pocket.findOne({ id: TRANSBODY.SENDERID });
+           if (senderPocket && senderPocket.client !== 'system' && senderPocket.client !== 'bank') {
+             if (senderPocket.balance - TRANSBODY.TOTALAMOUNT < maintainVal) {
+               throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+             }
+           }
+        }
+      }
+    }
     for (const val of validations) {
       if (val.validateFunc === 'validateReceiverIsNotSender') {
         if (TRANSBODY.SENDERID && TRANSBODY.RECEIVERID && TRANSBODY.SENDERID === TRANSBODY.RECEIVERID) {
@@ -311,6 +327,13 @@ module.exports = {
         const validateAmountField = parts[0];
         const maxVal = parseInt(parts[1], 10) || 0;
         if (TRANSBODY[validateAmountField] !== undefined && Number(TRANSBODY[validateAmountField]) > maxVal) {
+          throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+        }
+      } else if (val.validateFunc === 'validateMultipleOf') {
+        const parts = val.validateFields.split(':');
+        const validateAmountField = parts[0];
+        const multipleVal = parseInt(parts[1], 10) || 1;
+        if (TRANSBODY[validateAmountField] !== undefined && Number(TRANSBODY[validateAmountField]) % multipleVal !== 0) {
           throw new Error(`${val.errorCode}: ${val.errorMessage}`);
         }
       }
@@ -541,6 +564,22 @@ module.exports = {
     const discountValue = Number(TRANSBODY.DISCOUNT) || 0;
     TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee - discountValue;
     // ----------------------------------------------------
+
+    // Đánh giá DB-related validations (kiểm tra lại số dư thực tế lần cuối)
+    for (const val of validations) {
+      if (val.validateFunc === 'validateMaintainBalance') {
+        const parts = val.validateFields.split(':');
+        const maintainVal = parseInt(parts[1], 10) || 50000;
+        if (TRANSBODY.SENDERID) {
+           const senderPocket = await Pocket.findOne({ id: TRANSBODY.SENDERID });
+           if (senderPocket && senderPocket.client !== 'system' && senderPocket.client !== 'bank') {
+             if (senderPocket.balance - TRANSBODY.TOTALAMOUNT < maintainVal) {
+               throw new Error(`${val.errorCode}: ${val.errorMessage}`);
+             }
+           }
+        }
+      }
+    }
 
     // 3. Thực thi Kế toán sử dụng MongoDB Replica Set Transaction (ACID)
     const db = Pocket.getDatastore().manager;

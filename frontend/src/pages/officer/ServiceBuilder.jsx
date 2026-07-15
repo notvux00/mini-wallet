@@ -21,9 +21,14 @@ export default function ServiceBuilder() {
   const [validations, setValidations] = useState({
     notSameSender: true,
     checkBalance: true,
+    maintainBalance: false,
+    maintainBalanceValue: 50000,
     minAmount: false,
+    minAmountValue: 10000,
     maxAmount: false,
-    maxAmountValue: 50000000
+    maxAmountValue: 50000000,
+    multipleOf: false,
+    multipleOfValue: 10000
   });
   const [glSteps, setGlSteps] = useState([
     { id: '1', amountVar: undefined, from: undefined, to: undefined, title: 'Chuyển tiền gốc' }
@@ -64,11 +69,25 @@ export default function ServiceBuilder() {
         serviceDetail.validations.forEach(v => {
           if (v.validateFunc === 'validateReceiverIsNotSender') ruleMap.notSameSender = true;
           if (v.validateFunc === 'validateSenderAccountSufficiency') ruleMap.checkBalance = true;
-          if (v.validateFunc === 'validateMinAmount') ruleMap.minAmount = true;
+          if (v.validateFunc === 'validateMaintainBalance') {
+            ruleMap.maintainBalance = true;
+            const parts = v.validateFields.split(':');
+            ruleMap.maintainBalanceValue = parseInt(parts[1], 10) || 50000;
+          }
+          if (v.validateFunc === 'validateMinAmount') {
+            ruleMap.minAmount = true;
+            const parts = v.validateFields.split(':');
+            ruleMap.minAmountValue = parseInt(parts[1], 10) || 10000;
+          }
           if (v.validateFunc === 'validateMaxAmount') {
             ruleMap.maxAmount = true;
             const parts = v.validateFields.split(':');
             ruleMap.maxAmountValue = parseInt(parts[1], 10) || 50000000;
+          }
+          if (v.validateFunc === 'validateMultipleOf') {
+            ruleMap.multipleOf = true;
+            const parts = v.validateFields.split(':');
+            ruleMap.multipleOfValue = parseInt(parts[1], 10) || 10000;
           }
         });
         setValidations(prev => ({ ...prev, ...ruleMap }));
@@ -203,15 +222,15 @@ export default function ServiceBuilder() {
               </Col>
             </Row>
             <Row gutter={24}>
-              <Col span={8}>
+              <Col span={6}>
                 <Form.Item name="authMethod" label="Xác thực">
                   <Select size="large">
                     <Option value="PIN">Yêu cầu nhập mã PIN</Option>
-                    <Option value="NONE">Không cần xác thực (NONE)</Option>
+                    <Option value="NONE">Không cần xác thực</Option>
                   </Select>
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={6}>
                 <Form.Item name="feeType" label="Loại phí">
                   <Select size="large">
                     <Option value="fixed">Cố định (VND)</Option>
@@ -219,9 +238,14 @@ export default function ServiceBuilder() {
                   </Select>
                 </Form.Item>
               </Col>
-              <Col span={8}>
-                <Form.Item name="feeValue" label="Mức phí">
+              <Col span={6}>
+                <Form.Item name="feeValue" label="Mức phí (%, VND)">
                   <Input type="number" size="large" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="feeMax" label="Phí Tối Đa (Nếu là %)">
+                  <Input type="number" size="large" placeholder="VD: 50000" />
                 </Form.Item>
               </Col>
             </Row>
@@ -484,12 +508,50 @@ export default function ServiceBuilder() {
               <Switch checked={validations.checkBalance} onChange={v => setValidations({...validations, checkBalance: v})} />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-              <div>
-                <Text strong style={{ fontSize: 16 }}>Hạn mức tối thiểu</Text>
-                <br/><Text type="secondary">Giao dịch phải lớn hơn 10.000 VND.</Text>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>Số dư duy trì tối thiểu</Text>
+                  <br/><Text type="secondary">Bắt buộc số dư trong ví sau giao dịch không được tụt dưới mức này.</Text>
+                </div>
+                <Switch checked={validations.maintainBalance} onChange={v => setValidations({...validations, maintainBalance: v})} />
               </div>
-              <Switch checked={validations.minAmount} onChange={v => setValidations({...validations, minAmount: v})} />
+              {validations.maintainBalance && (
+                <div style={{ marginTop: 16 }}>
+                  <Text strong>Nhập số dư cần duy trì (VND):</Text>
+                  <InputNumber 
+                    style={{ width: '100%', marginTop: 8 }} 
+                    size="large"
+                    value={validations.maintainBalanceValue}
+                    onChange={val => setValidations({...validations, maintainBalanceValue: val})}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>Hạn mức tối thiểu</Text>
+                  <br/><Text type="secondary">Giao dịch phải lớn hơn hoặc bằng số tiền chỉ định.</Text>
+                </div>
+                <Switch checked={validations.minAmount} onChange={v => setValidations({...validations, minAmount: v})} />
+              </div>
+              {validations.minAmount && (
+                <div style={{ marginTop: 16 }}>
+                  <Text strong>Nhập số tiền tối thiểu (VND):</Text>
+                  <InputNumber 
+                    style={{ width: '100%', marginTop: 8 }} 
+                    size="large"
+                    value={validations.minAmountValue}
+                    onChange={val => setValidations({...validations, minAmountValue: val})}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexDirection: 'column' }}>
@@ -508,6 +570,29 @@ export default function ServiceBuilder() {
                     size="large"
                     value={validations.maxAmountValue}
                     onChange={val => setValidations({...validations, maxAmountValue: val})}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>Ràng buộc Bội số</Text>
+                  <br/><Text type="secondary">Số tiền giao dịch phải là bội số của giá trị quy định (VD: 10,000).</Text>
+                </div>
+                <Switch checked={validations.multipleOf} onChange={v => setValidations({...validations, multipleOf: v})} />
+              </div>
+              {validations.multipleOf && (
+                <div style={{ marginTop: 16 }}>
+                  <Text strong>Nhập giá trị bội số (VND):</Text>
+                  <InputNumber 
+                    style={{ width: '100%', marginTop: 8 }} 
+                    size="large"
+                    value={validations.multipleOfValue}
+                    onChange={val => setValidations({...validations, multipleOfValue: val})}
                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
                   />

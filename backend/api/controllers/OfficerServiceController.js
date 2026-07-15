@@ -16,6 +16,9 @@ const SVC_ERR = {
   SAME_SENDER:              5030, // Người nhận trùng người gửi
   INSUFFICIENT_BALANCE:     5031, // Số dư không đủ (bao gồm phí)
   MIN_AMOUNT:               5032, // Số tiền dưới mức tối thiểu
+  MAX_AMOUNT:               5033, // Số tiền vượt mức tối đa
+  MULTIPLE_OF:              5034, // Số tiền không phải bội số
+  MAINTAIN_BALANCE:         5035, // Số dư không đủ mức duy trì
   SERVICE_NOT_ACTIVE:       5040, // Dịch vụ đang active, phải tắt trước khi sửa
   SERVICE_ALREADY_INACTIVE: 5041, // Dịch vụ đã inactive rồi
 };
@@ -343,8 +346,36 @@ function _buildValidations(rules, serviceId, amountField) {
       validateFunc: 'validateMaxAmount',
       validateFields: `${amountField}:${threshold}`, // dùng tên biến động
       order: order++,
-      errorCode: 5033, // SVC_ERR.MAX_AMOUNT
+      errorCode: SVC_ERR.MAX_AMOUNT,
       errorMessage: `Số tiền giao dịch tối đa là ${threshold.toLocaleString('vi-VN')}đ.`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
+  if (rules.multipleOf) {
+    const threshold = rules.multipleOfValue || 10000;
+    validations.push({
+      service: serviceId,
+      validateFunc: 'validateMultipleOf',
+      validateFields: `${amountField}:${threshold}`, // dùng tên biến động
+      order: order++,
+      errorCode: SVC_ERR.MULTIPLE_OF,
+      errorMessage: `Số tiền giao dịch phải là bội số của ${threshold.toLocaleString('vi-VN')}đ.`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
+  if (rules.maintainBalance) {
+    const threshold = rules.maintainBalanceValue || 50000;
+    validations.push({
+      service: serviceId,
+      validateFunc: 'validateMaintainBalance',
+      validateFields: `${amountField}:${threshold}`, // dùng tên biến động
+      order: order++,
+      errorCode: SVC_ERR.MAINTAIN_BALANCE,
+      errorMessage: `Số dư tài khoản phải duy trì tối thiểu ${threshold.toLocaleString('vi-VN')}đ sau giao dịch.`,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -431,9 +462,13 @@ module.exports = {
             name: serviceInfo.serviceName,
             action: serviceInfo.action || 'none',
             actionParams: serviceInfo.actionParams || {},
-            auth: { method: serviceInfo.authMethod },
-            fee: { type: serviceInfo.feeType, value: Number(serviceInfo.feeValue) || 0 },
-            status: 'active',
+            auth: { method: serviceInfo.authMethod || 'PIN' },
+            fee: { 
+              type: serviceInfo.feeType, 
+              value: Number(serviceInfo.feeValue) || 0,
+              max: Number(serviceInfo.feeMax) || 0
+            },
+            status: 'inactive',
             fieldBuilder: fieldBuilder,
             createdAt: Date.now(),
             updatedAt: Date.now(),
@@ -496,9 +531,10 @@ module.exports = {
         serviceInfo: {
           serviceCode: service.code,
           serviceName: service.name,
-          authMethod: service.auth?.method || 'PIN',
+          authMethod: service.auth?.method || service.authMethod || 'PIN',
           feeType: service.fee?.type || 'fixed',
           feeValue: service.fee?.value || 0,
+          feeMax: service.fee?.max || 0,
           action: service.action || 'none',
           actionParams: service.actionParams || {},
           status: service.status,
@@ -563,8 +599,12 @@ module.exports = {
                 name: serviceInfo.serviceName,
                 action: serviceInfo.action || 'none',
                 actionParams: serviceInfo.actionParams || {},
-                auth: { method: serviceInfo.authMethod },
-                fee: { type: serviceInfo.feeType, value: Number(serviceInfo.feeValue) || 0 },
+                auth: { method: serviceInfo.authMethod || 'PIN' },
+                fee: { 
+                  type: serviceInfo.feeType, 
+                  value: Number(serviceInfo.feeValue) || 0,
+                  max: Number(serviceInfo.feeMax) || 0
+                },
                 fieldBuilder: fieldBuilder,
                 updatedAt: Date.now(),
               }

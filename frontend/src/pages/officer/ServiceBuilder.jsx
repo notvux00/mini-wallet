@@ -222,7 +222,7 @@ export default function ServiceBuilder() {
               </Col>
             </Row>
             <Row gutter={24}>
-              <Col span={6}>
+              <Col span={basicInfo.feeType === 'percent' ? 6 : 8}>
                 <Form.Item name="authMethod" label="Xác thực">
                   <Select size="large">
                     <Option value="PIN">Yêu cầu nhập mã PIN</Option>
@@ -230,7 +230,7 @@ export default function ServiceBuilder() {
                   </Select>
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col span={basicInfo.feeType === 'percent' ? 6 : 8}>
                 <Form.Item name="feeType" label="Loại phí">
                   <Select size="large">
                     <Option value="fixed">Cố định (VND)</Option>
@@ -238,16 +238,18 @@ export default function ServiceBuilder() {
                   </Select>
                 </Form.Item>
               </Col>
-              <Col span={6}>
-                <Form.Item name="feeValue" label="Mức phí (%, VND)">
+              <Col span={basicInfo.feeType === 'percent' ? 6 : 8}>
+                <Form.Item name="feeValue" label={basicInfo.feeType === 'percent' ? 'Mức phí (%)' : 'Mức phí (VND)'}>
                   <Input type="number" size="large" />
                 </Form.Item>
               </Col>
-              <Col span={6}>
-                <Form.Item name="feeMax" label="Phí Tối Đa (Nếu là %)">
-                  <Input type="number" size="large" placeholder="VD: 50000" />
-                </Form.Item>
-              </Col>
+              {basicInfo.feeType === 'percent' && (
+                <Col span={6}>
+                  <Form.Item name="feeMax" label="Phí Tối Đa (VND)">
+                    <Input type="number" size="large" placeholder="VD: 50000" />
+                  </Form.Item>
+                </Col>
+              )}
             </Row>
             <Row gutter={24}>
               <Col span={12}>

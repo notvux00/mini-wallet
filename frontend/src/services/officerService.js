@@ -60,7 +60,7 @@ const officerService = {
   },
 
   toggleServiceStatus: async (data) => {
-    const response = await axios.post('/api/officer/services/toggle', data);
+    const response = await axios.post('/api/officer/services/toggle-status', data);
     if (response.data.err === 0 || response.data.err === 200) return response.data.data;
     throw new Error(response.data.msg || 'Lỗi thay đổi trạng thái dịch vụ');
   },

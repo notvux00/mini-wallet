@@ -16,7 +16,8 @@ import {
   SwapOutlined,
   ShopOutlined,
   TeamOutlined,
-  AuditOutlined
+  AuditOutlined,
+  SafetyCertificateOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -42,6 +43,7 @@ export default function OfficerLayout() {
     { key: '/officer/pocket-entries', icon: <SwapOutlined />, label: 'Biến động ví' },
     { key: '/officer/trail', icon: <AuditOutlined />, label: 'Tra soát giao dịch' },
     { key: '/officer/history', icon: <FileDoneOutlined />, label: 'Lịch sử giao dịch' },
+    { key: '/officer/reconciliation', icon: <SafetyCertificateOutlined />, label: 'Đối soát hệ thống' },
   ];
 
   const userMenu = {

@@ -84,6 +84,26 @@ module.exports = {
       sails.log.error('Lỗi getMe Officer:', error);
       return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
     }
+  },
+
+  listReconciliation: async function(req, res) {
+    try {
+      const reports = await ReconciliationReport.find().sort('runAt DESC').limit(30);
+      return res.json({ err: 0, msg: 'Success', data: reports });
+    } catch (error) {
+      sails.log.error(error);
+      return res.json({ err: 1, msg: error.message });
+    }
+  },
+
+  runReconciliation: async function(req, res) {
+    try {
+      const report = await sails.helpers.runReconciliation.with({ triggerBy: req.user?.id || 'OFFICER' });
+      return res.json({ err: 0, msg: 'Đối soát thành công', data: report });
+    } catch (error) {
+      sails.log.error(error);
+      return res.json({ err: 1, msg: error.message });
+    }
   }
 
 };

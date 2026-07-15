@@ -14,6 +14,7 @@ import BankManagement from './pages/officer/BankManagement';
 import TransactionTrail from './pages/officer/TransactionTrail';
 import TransactionHistory from './pages/officer/TransactionHistory';
 import PocketEntryHistory from './pages/officer/PocketEntryHistory';
+import Reconciliation from './pages/officer/Reconciliation';
 import CustomerLayout from './components/CustomerLayout';
 import CustomerLogin from './pages/customer/CustomerLogin';
 import CustomerRegister from './pages/customer/CustomerRegister';
@@ -50,6 +51,7 @@ function App() {
               <Route path="history" element={<TransactionHistory />} />
               <Route path="trail" element={<TransactionTrail />} />
               <Route path="pocket-entries" element={<PocketEntryHistory />} />
+              <Route path="reconciliation" element={<Reconciliation />} />
             </Route>
 
             {/* Customer App */}

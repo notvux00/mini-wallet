@@ -1,4 +1,23 @@
+const cron = require('node-cron');
+
 module.exports.bootstrap = async function() {
+
+  // Setup system wallets
+  const sysPocketCount = await Pocket.count({ client: 'system' });
+  if (sysPocketCount === 0) {
+    const checksum = SecurityUtil.generatePocketChecksum(0, 'SYS_FEE');
+    await Pocket.create({ id: 'SYS_FEE', user: 'SYS_FEE', client: 'system', balance: 0, checksum });
+  }
+
+  // Setup cronjob cho Đối soát tự động (Chạy vào 23:59:59 hàng ngày)
+  cron.schedule('59 59 23 * * *', async () => {
+    try {
+      sails.log.info('Bắt đầu chạy Cronjob Đối soát Tự động...');
+      await sails.helpers.runReconciliation.with({ triggerBy: 'SYSTEM' });
+    } catch (err) {
+      sails.log.error('Lỗi Cronjob Đối soát:', err);
+    }
+  });
 
   // Khởi tạo CronService (Tắt trong lúc chạy Test để tránh lỗi rò rỉ bộ nhớ & Consistency violation)
   const isTest = process.env.NODE_ENV === 'test' || (sails.config && sails.config.environment === 'test');

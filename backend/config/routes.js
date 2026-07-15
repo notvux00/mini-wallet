@@ -67,8 +67,11 @@ module.exports.routes = {
   // Sockets
   'GET /api/officer/socket/subscribe': 'SocketController.officerSubscribe',
   'GET /api/customer/socket/subscribe': 'SocketController.customerSubscribe',
+  // Đối soát tự động (Auto-Reconciliation)
+  'POST /api/officer/reconciliation/list': 'OfficerController.listReconciliation',
+  'POST /api/officer/reconciliation/run': 'OfficerController.runReconciliation',
 
-  // Services
+  // Service Managements
   'POST /api/officer/services/list': 'OfficerServiceController.list',
   'POST /api/officer/services/create': 'OfficerServiceController.create',
   'POST /api/officer/services/detail': 'OfficerServiceController.detail',

@@ -1,119 +1,117 @@
-import React, { useState, useEffect } from 'react';
-import axios from '../../utils/axios';
-import { Card, Typography, Table, Tag, Button, Space, Popconfirm, Modal, Form, Input, Row, Col, message, Select, Collapse } from 'antd';
+import React, { useState } from 'react';
+import { Card, Typography, Table, Tag, Button, Space, Popconfirm, Modal, Form, Input, Row, Col, notification, Select, Collapse } from 'antd';
 import { PlusOutlined, StopOutlined, CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
+import { useBillers, useCreateBiller, useUpdateBiller, useToggleBillerStatus } from '../../hooks/useOfficer';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export default function BillerManagement() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const [filterStatus, setFilterStatus] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  const fetchBillers = async (page = 1, status = filterStatus, search = searchKeyword) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/officer/billers/list', {
-        page: page,
-        limit: pagination.pageSize,
-        status: status || undefined,
-        search: search || undefined
-      });
-      const { items, total } = response.data.data;
-      
-      const formattedData = items.map(item => ({
-        key: item.id,
-        code: item.code,
-        name: item.name,
-        inquiryUrl: item.inquiryUrl,
-        paymentUrl: item.paymentUrl,
-        pocket: item.pocket,
-        status: item.status,
-        inqReqKeyCustomer: item.inqReqKeyCustomer,
-        inqReqKeyBiller: item.inqReqKeyBiller,
-        inquiryResMappingAmount: item.inquiryResMappingAmount,
-        inquiryResMappingBillRef: item.inquiryResMappingBillRef,
-        payReqKeyCustomer: item.payReqKeyCustomer,
-        payReqKeyAmount: item.payReqKeyAmount,
-        payReqKeyBillRef: item.payReqKeyBillRef,
-        payResMappingStatus: item.payResMappingStatus,
-        payResMappingSuccessValue: item.payResMappingSuccessValue,
-      }));
+  // Queries
+  const { data: billersData, isLoading, refetch } = useBillers({
+    page: pagination.current,
+    limit: pagination.pageSize,
+    status: filterStatus || undefined,
+    search: searchKeyword || undefined
+  });
 
-      setData(formattedData);
-      setPagination(prev => ({ ...prev, current: page, total: total }));
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi tải danh sách Biller');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Mutations
+  const createBillerMutation = useCreateBiller();
+  const updateBillerMutation = useUpdateBiller();
+  const toggleStatusMutation = useToggleBillerStatus();
 
-  useEffect(() => {
-    fetchBillers();
-  }, []);
+  const formattedData = billersData?.items?.map(item => ({
+    key: item.id,
+    code: item.code,
+    name: item.name,
+    inquiryUrl: item.inquiryUrl,
+    paymentUrl: item.paymentUrl,
+    pocket: item.pocket,
+    status: item.status,
+    inqReqKeyCustomer: item.inqReqKeyCustomer,
+    inqReqKeyBiller: item.inqReqKeyBiller,
+    inquiryResMappingAmount: item.inquiryResMappingAmount,
+    inquiryResMappingBillRef: item.inquiryResMappingBillRef,
+    payReqKeyCustomer: item.payReqKeyCustomer,
+    payReqKeyAmount: item.payReqKeyAmount,
+    payReqKeyBillRef: item.payReqKeyBillRef,
+    payResMappingStatus: item.payResMappingStatus,
+    payResMappingSuccessValue: item.payResMappingSuccessValue,
+  })) || [];
 
   const handleTableChange = (newPagination) => {
-    fetchBillers(newPagination.current);
+    setPagination(newPagination);
   };
 
   const handleFilterChange = (value) => {
     setFilterStatus(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchBillers(1, value, searchKeyword);
   };
 
   const handleSearch = (value) => {
     setSearchKeyword(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchBillers(1, filterStatus, value);
   };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingBiller, setEditingBiller] = useState(null);
   const [form] = Form.useForm();
 
-  const toggleStatus = async (record) => {
-    try {
-      await axios.post('/api/officer/billers/toggle-status', { id: record.key });
-      const newStatus = record.status === 'active' ? 'inactive' : 'active';
-      message.success(`Biller ${record.code} đã được chuyển sang trạng thái ${newStatus.toUpperCase()}.`);
-      
-      fetchBillers(pagination.current, filterStatus, searchKeyword);
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái Biller');
-    }
-  };
-
-  const handleSubmit = async (values) => {
-    try {
-      if (editingBiller) {
-        await axios.post('/api/officer/billers/update', { ...values, id: editingBiller.key });
-        message.success(`Cập nhật Biller ${values.code} thành công.`);
-      } else {
-        await axios.post('/api/officer/billers/create', values);
-        message.success(`Tạo mới Biller ${values.code} thành công.`);
+  const toggleStatus = (record) => {
+    toggleStatusMutation.mutate(
+      { id: record.key },
+      {
+        onSuccess: () => {
+          const newStatus = record.status === 'active' ? 'inactive' : 'active';
+          notification.success({ message: `Biller ${record.code} đã được chuyển sang trạng thái ${newStatus.toUpperCase()}.` });
+          refetch();
+        },
+        onError: (error) => {
+          notification.error({ message: error.message || 'Lỗi khi cập nhật trạng thái Biller' });
+        }
       }
-      setIsModalVisible(false);
-      form.resetFields();
-      setEditingBiller(null);
-      
-      fetchBillers(pagination.current, filterStatus, searchKeyword);
-    } catch (error) {
-      message.error(error.response?.data?.message || (editingBiller ? 'Lỗi khi cập nhật Biller!' : 'Lỗi khi tạo Biller!'));
+    );
+  };
+
+  const handleSubmit = (values) => {
+    if (editingBiller) {
+      updateBillerMutation.mutate(
+        { ...values, id: editingBiller.key },
+        {
+          onSuccess: () => {
+            notification.success({ message: `Cập nhật Biller ${values.code} thành công.` });
+            setIsModalVisible(false);
+            form.resetFields();
+            setEditingBiller(null);
+            refetch();
+          },
+          onError: (error) => {
+            notification.error({ message: error.message || 'Lỗi khi cập nhật Biller!' });
+          }
+        }
+      );
+    } else {
+      createBillerMutation.mutate(
+        values,
+        {
+          onSuccess: () => {
+            notification.success({ message: `Tạo mới Biller ${values.code} thành công.` });
+            setIsModalVisible(false);
+            form.resetFields();
+            refetch();
+          },
+          onError: (error) => {
+            notification.error({ message: error.message || 'Lỗi khi tạo Biller!' });
+          }
+        }
+      );
     }
   };
 
-  const handleEdit = async (record) => {
-    // The record in the table only has basic fields. 
-    // We need to fetch the full Biller from the server to populate the form, 
-    // or we can just send the current record if it has everything. 
-    // Wait, the list API doesn't return mapping fields. 
-    // Let me update the list API in OfficerBillerController to return mapping fields.
-    // Or I can just fetch it here. We don't have a get by id API.
-    // Let's assume the list API returns it. Wait, I'll update OfficerBillerController to return everything.
+  const handleEdit = (record) => {
     setEditingBiller(record);
     form.setFieldsValue({
       code: record.code,
@@ -151,13 +149,14 @@ export default function BillerManagement() {
     { title: 'Inquiry URL', dataIndex: 'inquiryUrl', key: 'inquiryUrl', align: 'center', width: '20%', ellipsis: true, render: text => <a title={text}>{text}</a> },
     { title: 'Payment URL', dataIndex: 'paymentUrl', key: 'paymentUrl', align: 'center', width: '15%', ellipsis: true, render: text => <a title={text}>{text}</a> },
     { title: 'Ví nhận tiền', dataIndex: 'pocket', key: 'pocket', align: 'center', width: '15%', render: text => <Text code copyable={{ text: text }} title={text}>{formatId(text)}</Text> },
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'processing' : 'error'} style={{ margin: 0 }}>{text.toUpperCase()}</Tag> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: '10%', render: text => <Tag color={text === 'active' ? 'processing' : 'error'} style={{ margin: 0 }}>{text?.toUpperCase()}</Tag> },
     { title: 'Thao tác', key: 'action', align: 'center', width: '10%', render: (_, record) => (
       <Space>
         <Button size="small" type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} style={{ color: '#0ea5e9' }} />
         <Popconfirm 
           title={record.status === 'active' ? "Vô hiệu hóa Biller này?" : "Kích hoạt Biller này?"} 
           onConfirm={() => toggleStatus(record)}
+          okButtonProps={{ loading: toggleStatusMutation.isPending }}
         >
           <Button 
             size="small" 
@@ -198,10 +197,10 @@ export default function BillerManagement() {
       <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden' } }}>
         <Table 
           columns={columns} 
-          dataSource={data} 
-          pagination={{ ...pagination, showSizeChanger: false }} 
+          dataSource={formattedData} 
+          pagination={{ ...pagination, showSizeChanger: false, total: billersData?.total || 0 }} 
           onChange={handleTableChange}
-          loading={loading}
+          loading={isLoading}
           rowClassName="smart-row" 
         />
       </Card>
@@ -297,7 +296,7 @@ export default function BillerManagement() {
           <Form.Item style={{ marginBottom: 0, marginTop: 32, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => setIsModalVisible(false)} size="large">Hủy bỏ</Button>
-              <Button type="primary" htmlType="submit" size="large" style={{ background: '#0ea5e9' }}>
+              <Button type="primary" htmlType="submit" size="large" loading={editingBiller ? updateBillerMutation.isPending : createBillerMutation.isPending} style={{ background: '#0ea5e9' }}>
                 {editingBiller ? 'Cập nhật Biller' : 'Tạo Biller'}
               </Button>
             </Space>

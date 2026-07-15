@@ -1,43 +1,47 @@
-import React from 'react';
-import { Card, Form, Input, Button, Typography, Row, Col, message } from 'antd';
+import React, { useContext, useEffect } from 'react';
+import { Card, Form, Input, Button, Typography, Row, Col, notification } from 'antd';
 import { MobileOutlined, LockOutlined, UserOutlined, WalletFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
+import { useCustomerRegister } from '../../hooks/useAuth';
 
 const { Title, Text } = Typography;
-
-import { useState } from 'react';
-import axios from '../../utils/axios';
-import { AuthContext } from '../../context/AuthContext';
 
 export default function CustomerRegister() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const { user } = React.useContext(AuthContext);
+  const { user } = useContext(AuthContext);
+  const registerMutation = useCustomerRegister();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user && user.role === 'customer') {
       navigate('/app/home');
     }
   }, [user, navigate]);
 
-  const handleRegister = async (values) => {
-    setLoading(true);
-    try {
-      await axios.post('/api/auth/register', {
-        phone: values.phone,
-        name: values.fullName,
-        password: values.password,
-        pin: values.pin
-      });
-
-      message.success('Đăng ký thành công! Vui lòng đăng nhập.');
-      navigate('/app/login');
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi đăng ký');
-    } finally {
-      setLoading(false);
-    }
+  const handleRegister = (values) => {
+    registerMutation.mutate({
+      phone: values.phone,
+      name: values.fullName,
+      password: values.password,
+      pin: values.pin
+    }, {
+      onSuccess: () => {
+        notification.success({
+          message: 'Đăng ký thành công',
+          description: 'Vui lòng đăng nhập bằng tài khoản vừa tạo.',
+          placement: 'topRight',
+        });
+        navigate('/app/login');
+      },
+      onError: (error) => {
+        notification.error({
+          message: 'Lỗi đăng ký',
+          description: error.message || 'Có lỗi xảy ra',
+          placement: 'topRight',
+        });
+      }
+    });
   };
 
   return (
@@ -183,7 +187,7 @@ export default function CustomerRegister() {
                 htmlType="submit" 
                 size="large" 
                 block 
-                loading={loading}
+                loading={registerMutation.isPending}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
                 Đăng ký

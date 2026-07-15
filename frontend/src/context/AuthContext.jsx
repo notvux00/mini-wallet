@@ -1,55 +1,52 @@
 import React, { createContext, useState, useEffect } from 'react';
-import axios from '../utils/axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import authService from '../services/authService';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [auth, setAuth] = useState(() => ({
+    token: localStorage.getItem('MINI_WALLET_TOKEN'),
+    role: localStorage.getItem('MINI_WALLET_ROLE')
+  }));
 
-  // Hàm tự động check token khi F5 (Reload)
-  const fetchMe = async () => {
-    const token = localStorage.getItem('MINI_WALLET_TOKEN');
-    const role = localStorage.getItem('MINI_WALLET_ROLE');
-    
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Gọi API tuỳ theo Role (Tuân thủ Kiến trúc phân tách của Backend)
-      const url = role === 'officer' ? '/api/officer/me' : '/api/auth/me';
-      const response = await axios.post(url);
-      setUser(response.data.data);
-    } catch (error) {
-      console.error('Lỗi Token hết hạn hoặc sai:', error);
-      localStorage.removeItem('MINI_WALLET_TOKEN');
-      localStorage.removeItem('MINI_WALLET_ROLE');
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: user, isLoading, isError } = useQuery({
+    queryKey: ['authMe', auth.role, auth.token],
+    queryFn: () => authService.getMe(auth.role),
+    enabled: !!auth.token,
+    retry: false,
+  });
 
   useEffect(() => {
-    fetchMe();
-  }, []);
+    // Nếu token hết hạn hoặc fetch lỗi thì tự động logout
+    if (isError) {
+      logout();
+    }
+  }, [isError]);
 
   const login = (userData, token) => {
     localStorage.setItem('MINI_WALLET_TOKEN', token);
     localStorage.setItem('MINI_WALLET_ROLE', userData.role);
-    setUser(userData);
+    
+    // Set cache ngay lập tức để không phải chờ load lại
+    queryClient.setQueryData(['authMe', userData.role, token], userData);
+    
+    setAuth({ token, role: userData.role });
   };
 
   const logout = () => {
     localStorage.removeItem('MINI_WALLET_TOKEN');
     localStorage.removeItem('MINI_WALLET_ROLE');
-    setUser(null);
+    queryClient.removeQueries({ queryKey: ['authMe'] });
+    setAuth({ token: null, role: null });
   };
 
+  // Trạng thái loading toàn cục: Đang có token nhưng chưa load xong data
+  const loading = !!auth.token && isLoading;
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user: user || null, loading, login, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

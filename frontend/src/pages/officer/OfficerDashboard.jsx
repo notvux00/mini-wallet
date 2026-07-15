@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Card, Row, Col, Statistic, Typography, Table, Tag, Spin, Space, message } from 'antd';
+import React, { useEffect, useContext } from 'react';
+import { Card, Row, Col, Statistic, Typography, Table, Tag, Spin, Space } from 'antd';
 import { 
   UserOutlined, 
   BankOutlined, 
@@ -10,39 +10,22 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
-import axios from '../../utils/axios';
 import { SocketContext } from '../../context/SocketContext';
+import { useDashboardStats } from '../../hooks/useOfficer';
 
 const { Title, Text } = Typography;
 
 export default function OfficerDashboard() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
   const { io } = useContext(SocketContext);
-
-  const fetchStats = async () => {
-    try {
-      const response = await axios.post('/api/officer/dashboard/stats');
-      if (response.data && response.data.data) {
-        setStats(response.data.data);
-      }
-    } catch (error) {
-      console.error('Lỗi khi tải thống kê', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  
+  const { data: stats, isLoading, refetch } = useDashboardStats();
 
   useEffect(() => {
     if (io && io.socket) {
       console.log('Registering socket listener in Officer Dashboard');
       io.socket.on('transaction_updated', (msg) => {
         console.log('Socket event received!', msg);
-        fetchStats();
+        refetch();
       });
     }
     // Cleanup is handled by SocketContext when unmounting/disconnecting
@@ -51,9 +34,9 @@ export default function OfficerDashboard() {
         io.socket.off('transaction_updated');
       }
     }
-  }, [io]);
+  }, [io, refetch]);
 
-  if (loading) {
+  if (isLoading) {
     return <div style={{ textAlign: 'center', padding: '100px 0' }}><Spin size="large" /></div>;
   }
 

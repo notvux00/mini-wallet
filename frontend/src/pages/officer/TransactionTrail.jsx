@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from '../../utils/axios';
-import { Card, Typography, Table, Tag, Button, Modal, Tabs, Timeline, message, Select, Input, Space } from 'antd';
+import { Card, Typography, Table, Tag, Button, Modal, Tabs, Timeline, Select, Input, Space } from 'antd';
+import { useTrails } from '../../hooks/useOfficer';
 import { FileTextOutlined, EyeOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -43,86 +43,65 @@ export default function TransactionTrail() {
     )}
   ];
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const [filterStatus, setFilterStatus] = useState('');
   const [searchTransRef, setSearchTransRef] = useState('');
   const [searchServiceId, setSearchServiceId] = useState('');
   const { io } = useContext(SocketContext);
 
-  const fetchTrails = async (page = 1, status = filterStatus, transRefId = searchTransRef, serviceId = searchServiceId) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/officer/trails/list', {
-        page: page,
-        limit: pagination.pageSize,
-        status: status || undefined,
-        transRefId: transRefId || undefined,
-        serviceId: serviceId || undefined
-      });
-      const { items, total } = response.data.data;
-      
-      const formattedData = items.map(item => ({
-        key: item.id,
-        id: item.transRefId || item.id,
-        serviceId: item.serviceId,
-        transStep: item.transStep,
-        status: item.status,
-        createdAt: new Date(item.createdAt).toLocaleString('vi-VN'),
-        updatedAt: new Date(item.updatedAt).toLocaleString('vi-VN'),
-        inputMessage: typeof item.inputMessage === 'string' ? JSON.parse(item.inputMessage) : item.inputMessage,
-        outputMessage: typeof item.outputMessage === 'string' ? JSON.parse(item.outputMessage) : item.outputMessage,
-        transStepLog: typeof item.transStepLog === 'string' ? JSON.parse(item.transStepLog || '[]') : (item.transStepLog || [])
-      }));
+  const { data: responseData, isLoading, refetch } = useTrails({
+    page: pagination.current,
+    limit: pagination.pageSize,
+    status: filterStatus || undefined,
+    transRefId: searchTransRef || undefined,
+    serviceId: searchServiceId || undefined
+  });
 
-      setData(formattedData);
-      setPagination(prev => ({ ...prev, current: page, total: total }));
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi tải danh sách Dấu vết giao dịch');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const items = responseData?.items || [];
+  const total = responseData?.total || 0;
 
-  useEffect(() => {
-    fetchTrails();
-  }, []);
+  const data = items.map(item => ({
+    key: item.id,
+    id: item.transRefId || item.id,
+    serviceId: item.serviceId,
+    transStep: item.transStep,
+    status: item.status,
+    createdAt: new Date(item.createdAt).toLocaleString('vi-VN'),
+    updatedAt: new Date(item.updatedAt).toLocaleString('vi-VN'),
+    inputMessage: typeof item.inputMessage === 'string' ? JSON.parse(item.inputMessage) : item.inputMessage,
+    outputMessage: typeof item.outputMessage === 'string' ? JSON.parse(item.outputMessage) : item.outputMessage,
+    transStepLog: typeof item.transStepLog === 'string' ? JSON.parse(item.transStepLog || '[]') : (item.transStepLog || [])
+  }));
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', () => {
-        // Có giao dịch mới, cập nhật lại danh sách
-        fetchTrails(pagination.current);
-      });
+      const handleUpdate = () => {
+        refetch();
+      };
+      io.socket.on('transaction_updated', handleUpdate);
+      return () => {
+        io.socket.off('transaction_updated', handleUpdate);
+      };
     }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    };
-  }, [io, pagination.current]);
+  }, [io, refetch]);
 
   const handleTableChange = (newPagination) => {
-    fetchTrails(newPagination.current);
+    setPagination({ current: newPagination.current, pageSize: newPagination.pageSize });
   };
 
   const handleFilterChange = (value) => {
     setFilterStatus(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchTrails(1, value, searchTransRef, searchServiceId);
   };
 
   const handleSearchTransRef = (value) => {
     setSearchTransRef(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchTrails(1, filterStatus, value, searchServiceId);
   };
 
   const handleSearchServiceId = (value) => {
     setSearchServiceId(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchTrails(1, filterStatus, searchTransRef, value);
   };
 
   return (
@@ -161,9 +140,9 @@ export default function TransactionTrail() {
         <Table 
           columns={columns} 
           dataSource={data} 
-          pagination={{ ...pagination, showSizeChanger: false }} 
+          pagination={{ ...pagination, total, showSizeChanger: false }} 
           onChange={handleTableChange}
-          loading={loading}
+          loading={isLoading}
           rowClassName="smart-row" 
         />
       </Card>

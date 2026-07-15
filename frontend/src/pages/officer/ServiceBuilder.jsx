@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Checkbox, Space, Typography, Popconfirm, message, Row, Col, Collapse } from 'antd';
+import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Checkbox, Space, Typography, Popconfirm, notification, Row, Col, Collapse } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, MobileOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from '../../utils/axios';
+import { usePockets, useServiceDetail, useCreateService, useUpdateService } from '../../hooks/useOfficer';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -28,87 +28,70 @@ export default function ServiceBuilder() {
   const [glSteps, setGlSteps] = useState([
     { id: '1', amountVar: undefined, from: undefined, to: undefined, title: 'Chuyển tiền gốc' }
   ]);
-  const [systemPockets, setSystemPockets] = useState([]);
+
+  // Queries
+  const { data: systemPocketsData } = usePockets({ client: 'system', limit: 100 });
+  const systemPockets = systemPocketsData?.items || [];
+
+  const { data: serviceDetail } = useServiceDetail({ id }, { enabled: !!id });
+  
+  // Mutations
+  const createServiceMutation = useCreateService();
+  const updateServiceMutation = useUpdateService();
 
   useEffect(() => {
-    const fetchSystemPockets = async () => {
-      try {
-        const res = await axios.post('/api/officer/pockets/list', { client: 'system', limit: 100 });
-        if (res.data && res.data.data) {
-          setSystemPockets(Array.isArray(res.data.data) ? res.data.data : (res.data.data.items || []));
-        }
-      } catch (e) {
-        // ignore
+    if (serviceDetail) {
+      setBasicInfo(serviceDetail.serviceInfo);
+      form.setFieldsValue(serviceDetail.serviceInfo);
+      
+      if (serviceDetail.fields && serviceDetail.fields.length > 0) {
+        const hiddenFields = ['SERVICEID', 'SENDERID', 'RECEIVERID', 'CURRENCY'];
+        setInputFields(serviceDetail.fields.filter(f => !hiddenFields.includes(f.fieldName)).map(f => ({
+          id: f.id || Math.random().toString(),
+          label: f.fieldName,
+          type: f.fieldFormat,
+          required: f.isRequired,
+          variableName: f.fieldName,
+          minLength: f.minLength,
+          maxLength: f.maxLength,
+          errorCode: f.errorCode,
+          errorMessage: f.errorMessage
+        })));
       }
-    };
-    fetchSystemPockets();
-  }, []);
-
-  // Lấy dữ liệu nếu là Edit
-  useEffect(() => {
-    if (id) {
-      const fetchDetail = async () => {
-        try {
-          const res = await axios.post('/api/officer/services/detail', { id });
-          if (res.data && res.data.data) {
-            const data = res.data.data;
-            setBasicInfo(data.serviceInfo);
-            form.setFieldsValue(data.serviceInfo);
-            
-            if (data.fields && data.fields.length > 0) {
-              const hiddenFields = ['SERVICEID', 'SENDERID', 'RECEIVERID', 'CURRENCY'];
-              setInputFields(data.fields.filter(f => !hiddenFields.includes(f.fieldName)).map(f => ({
-                id: f.id || Math.random().toString(),
-                label: f.fieldName, // Vì DB backend ko lưu label tiếng việt, ta tạm dùng fieldName
-                type: f.fieldFormat,
-                required: f.isRequired,
-                variableName: f.fieldName,
-                minLength: f.minLength,
-                maxLength: f.maxLength,
-                errorCode: f.errorCode,
-                errorMessage: f.errorMessage
-              })));
-            }
-            
-            if (data.validations) {
-              const ruleMap = {};
-              data.validations.forEach(v => {
-                if (v.validateFunc === 'validateReceiverIsNotSender') ruleMap.notSameSender = true;
-                if (v.validateFunc === 'validateSenderAccountSufficiency') ruleMap.checkBalance = true;
-                if (v.validateFunc === 'validateMinAmount') ruleMap.minAmount = true;
-                if (v.validateFunc === 'validateMaxAmount') {
-                  ruleMap.maxAmount = true;
-                  const parts = v.validateFields.split(':');
-                  ruleMap.maxAmountValue = parseInt(parts[1], 10) || 50000000;
-                }
-              });
-              setValidations(prev => ({ ...prev, ...ruleMap }));
-            }
-            
-            if (data.accountingSteps && data.accountingSteps.length > 0) {
-              const reverseMapTarget = (val) => {
-                if (val.level === 'productLevel' && val.target === 'SENDERID') return 'SENDER';
-                if (val.level === 'productLevel' && val.target === 'RECEIVERID') return 'RECEIVER';
-                if (val.target === 'SYS_BANK') return 'BANK';
-                return val.target; // Trả về thẳng Pocket ID của ví hệ thống
-              };
-              
-              setGlSteps(data.accountingSteps.map((step, i) => ({
-                id: Math.random().toString(),
-                amountVar: step.amount,
-                from: reverseMapTarget(step.debit),
-                to: reverseMapTarget(step.credit),
-                title: `Bút toán ${i + 1}`
-              })));
-            }
+      
+      if (serviceDetail.validations) {
+        const ruleMap = {};
+        serviceDetail.validations.forEach(v => {
+          if (v.validateFunc === 'validateReceiverIsNotSender') ruleMap.notSameSender = true;
+          if (v.validateFunc === 'validateSenderAccountSufficiency') ruleMap.checkBalance = true;
+          if (v.validateFunc === 'validateMinAmount') ruleMap.minAmount = true;
+          if (v.validateFunc === 'validateMaxAmount') {
+            ruleMap.maxAmount = true;
+            const parts = v.validateFields.split(':');
+            ruleMap.maxAmountValue = parseInt(parts[1], 10) || 50000000;
           }
-        } catch (error) {
-          message.error('Lỗi lấy chi tiết cấu hình dịch vụ');
-        }
-      };
-      fetchDetail();
+        });
+        setValidations(prev => ({ ...prev, ...ruleMap }));
+      }
+      
+      if (serviceDetail.accountingSteps && serviceDetail.accountingSteps.length > 0) {
+        const reverseMapTarget = (val) => {
+          if (val.level === 'productLevel' && val.target === 'SENDERID') return 'SENDER';
+          if (val.level === 'productLevel' && val.target === 'RECEIVERID') return 'RECEIVER';
+          if (val.target === 'SYS_BANK') return 'BANK';
+          return val.target;
+        };
+        
+        setGlSteps(serviceDetail.accountingSteps.map((step, i) => ({
+          id: Math.random().toString(),
+          amountVar: step.amount,
+          from: reverseMapTarget(step.debit),
+          to: reverseMapTarget(step.credit),
+          title: `Bút toán ${i + 1}`
+        })));
+      }
     }
-  }, [id, form]);
+  }, [serviceDetail, form]);
 
   // Handle Input Fields
   const addInputField = () => {
@@ -136,7 +119,7 @@ export default function ServiceBuilder() {
   const handleFinish = async () => {
     try {
       if (!basicInfo.serviceCode || !basicInfo.serviceName) {
-        message.error('Vui lòng quay lại Bước 1 và điền đầy đủ Tên và Mã Dịch vụ!');
+        notification.error({ message: 'Vui lòng quay lại Bước 1 và điền đầy đủ Tên và Mã Dịch vụ!' });
         return;
       }
       
@@ -146,20 +129,16 @@ export default function ServiceBuilder() {
         if (!finalBasicInfo.actionParams.billerIdField) finalBasicInfo.actionParams.billerIdField = 'BILLERID';
         if (!finalBasicInfo.actionParams.customerCodeField) finalBasicInfo.actionParams.customerCodeField = 'BILLCODE';
       }
-      // P2P: đảm bảo receiverPhoneField được gửi lên (fallback 'RECEIVERPHONE' nếu Officer chưa chọn)
       if (!finalBasicInfo.action || finalBasicInfo.action === 'none') {
         if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
         if (!finalBasicInfo.actionParams.receiverPhoneField) finalBasicInfo.actionParams.receiverPhoneField = 'RECEIVERPHONE';
       }
-      // Cash-in: auth bắt buộc NONE, fallback bankPocketField và receiverPhoneField
       if (finalBasicInfo.action === 'cashIn') {
         if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
         if (!finalBasicInfo.actionParams.bankPocketField) finalBasicInfo.actionParams.bankPocketField = 'BANKID';
         if (!finalBasicInfo.actionParams.receiverPhoneField) finalBasicInfo.actionParams.receiverPhoneField = 'RECEIVERPHONE';
-        finalBasicInfo.authMethod = 'NONE'; // Cash-in không cần PIN
+        finalBasicInfo.authMethod = 'NONE';
       }
-      
-      // Bank Topup / Withdraw: fallback bankLinkField
       if (finalBasicInfo.action === 'bankDeposit' || finalBasicInfo.action === 'bankWithdraw') {
         if (!finalBasicInfo.actionParams) finalBasicInfo.actionParams = {};
         if (!finalBasicInfo.actionParams.bankLinkField) finalBasicInfo.actionParams.bankLinkField = 'BANK_LINK_ID';
@@ -172,18 +151,34 @@ export default function ServiceBuilder() {
         accountingSteps: glSteps
       };
       
-      if (id) payload.id = id;
-
-      const url = id ? '/api/officer/services/update' : '/api/officer/services/create';
-      const res = await axios.post(url, payload);
-      message.success((res.data && res.data.message) || 'Lưu cấu hình Dịch vụ thành công!');
-      navigate('/officer/services');
+      if (id) {
+        payload.id = id;
+        updateServiceMutation.mutate(payload, {
+          onSuccess: () => {
+            notification.success({ message: 'Lưu cấu hình Dịch vụ thành công!' });
+            navigate('/officer/services');
+          },
+          onError: () => {
+            notification.error({ message: 'Có lỗi xảy ra khi lưu cấu hình.' });
+          }
+        });
+      } else {
+        createServiceMutation.mutate(payload, {
+          onSuccess: () => {
+            notification.success({ message: 'Tạo cấu hình Dịch vụ thành công!' });
+            navigate('/officer/services');
+          },
+          onError: () => {
+            notification.error({ message: 'Có lỗi xảy ra khi tạo cấu hình.' });
+          }
+        });
+      }
     } catch (error) {
       if (error.errorFields) {
-        message.error('Vui lòng điền đầy đủ thông tin ở Bước 1!');
+        notification.error({ message: 'Vui lòng điền đầy đủ thông tin ở Bước 1!' });
         setCurrentStep(0);
       } else {
-        message.error('Có lỗi xảy ra khi lưu cấu hình.');
+        notification.error({ message: 'Có lỗi xảy ra khi xử lý.' });
       }
     }
   };
@@ -657,7 +652,7 @@ export default function ServiceBuilder() {
             Tiếp tục
           </Button>
         ) : (
-          <Popconfirm title="Phát hành dịch vụ này?" onConfirm={handleFinish}>
+          <Popconfirm title="Phát hành dịch vụ này?" onConfirm={handleFinish} okButtonProps={{ loading: id ? updateServiceMutation.isPending : createServiceMutation.isPending }}>
             <Button type="primary" size="large" style={{ background: '#10b981', borderColor: '#10b981' }}>
               Lưu & Phát hành
             </Button>

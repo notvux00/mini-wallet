@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Card, Typography, Table, Tag, message, Input, Space } from 'antd';
-import axios from '../../utils/axios';
+import { Card, Typography, Table, Tag, Input, Space } from 'antd';
+import { useTransactions } from '../../hooks/useOfficer';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -27,80 +27,60 @@ export default function TransactionHistory() {
     { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', align: 'center' }
   ];
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const [searchTransRef, setSearchTransRef] = useState('');
   const [searchServiceId, setSearchServiceId] = useState('');
   const { io } = useContext(SocketContext);
 
-  const fetchTransactions = async (page = 1, transRefId = searchTransRef, serviceId = searchServiceId) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/officer/transactions/list', {
-        page: page,
-        limit: pagination.pageSize,
-        transRefId: transRefId || undefined,
-        serviceId: serviceId || undefined
-      });
-      const { items, total } = response.data.data;
-      
-      const formattedData = items.map(item => ({
-        key: item.id,
-        transRefId: item.transRefId,
-        serviceId: item.serviceId,
-        sender: item.sender,
-        receiver: item.receiver,
-        amount: item.amount,
-        fee: item.fee,
-        totalAmount: item.totalAmount,
-        billerRefId: item.billerRefId,
-        status: item.status,
-        description: item.description,
-        createdAt: new Date(item.createdAt).toLocaleString('vi-VN')
-      }));
+  const { data: responseData, isLoading, refetch } = useTransactions({
+    page: pagination.current,
+    limit: pagination.pageSize,
+    transRefId: searchTransRef || undefined,
+    serviceId: searchServiceId || undefined
+  });
 
-      setData(formattedData);
-      setPagination(prev => ({ ...prev, current: page, total: total }));
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi tải danh sách giao dịch');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const items = responseData?.items || [];
+  const total = responseData?.total || 0;
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
+  const data = items.map(item => ({
+    key: item.id,
+    transRefId: item.transRefId,
+    serviceId: item.serviceId,
+    sender: item.sender,
+    receiver: item.receiver,
+    amount: item.amount,
+    fee: item.fee,
+    totalAmount: item.totalAmount,
+    billerRefId: item.billerRefId,
+    status: item.status,
+    description: item.description,
+    createdAt: new Date(item.createdAt).toLocaleString('vi-VN')
+  }));
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', () => {
-        // Có giao dịch mới, cập nhật lại danh sách hiện tại
-        fetchTransactions(pagination.current);
-      });
+      const handleUpdate = () => {
+        refetch();
+      };
+      io.socket.on('transaction_updated', handleUpdate);
+      return () => {
+        io.socket.off('transaction_updated', handleUpdate);
+      };
     }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    };
-  }, [io, pagination.current]);
+  }, [io, refetch]);
 
   const handleTableChange = (newPagination) => {
-    fetchTransactions(newPagination.current);
+    setPagination({ current: newPagination.current, pageSize: newPagination.pageSize });
   };
 
   const handleSearchTransRef = (value) => {
     setSearchTransRef(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchTransactions(1, value, searchServiceId);
   };
 
   const handleSearchServiceId = (value) => {
     setSearchServiceId(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchTransactions(1, searchTransRef, value);
   };
 
   return (
@@ -127,9 +107,9 @@ export default function TransactionHistory() {
         <Table 
           columns={columns} 
           dataSource={data} 
-          pagination={{ ...pagination, showSizeChanger: false }} 
+          pagination={{ ...pagination, total, showSizeChanger: false }} 
           onChange={handleTableChange}
-          loading={loading}
+          loading={isLoading}
           rowClassName="smart-row" 
         />
       </Card>

@@ -1,44 +1,47 @@
-import React from 'react';
-import { Card, Form, Input, Button, Typography, Row, Col } from 'antd';
-import { UserOutlined, LockOutlined, RightOutlined, WalletFilled } from '@ant-design/icons';
+import React, { useContext, useEffect } from 'react';
+import { Card, Form, Input, Button, Typography, Row, Col, notification } from 'antd';
+import { UserOutlined, LockOutlined, WalletFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
+import { useOfficerLogin } from '../../hooks/useAuth';
 
 const { Title, Text } = Typography;
-
-import { message } from 'antd';
-import { useContext, useState } from 'react';
-import axios from '../../utils/axios';
-import { AuthContext } from '../../context/AuthContext';
 
 export default function OfficerLogin() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const { login, user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
+  const loginMutation = useOfficerLogin();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user && user.role === 'officer') {
       navigate('/officer/dashboard');
     }
   }, [user, navigate]);
 
-  const handleLogin = async (values) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/officer/login', {
-        username: values.username,
-        password: values.password,
-      });
-
-      const { token, user } = response.data.data;
-      login(user, token);
-      message.success('Đăng nhập thành công!');
-      navigate('/officer/dashboard');
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi đăng nhập');
-    } finally {
-      setLoading(false);
-    }
+  const handleLogin = (values) => {
+    loginMutation.mutate({
+      username: values.username,
+      password: values.password,
+    }, {
+      onSuccess: (data) => {
+        const { token, user } = data;
+        login(user, token);
+        notification.success({
+          message: 'Đăng nhập thành công',
+          description: 'Chào mừng cán bộ quay lại hệ thống!',
+          placement: 'topRight',
+        });
+        navigate('/officer/dashboard');
+      },
+      onError: (error) => {
+        notification.error({
+          message: 'Lỗi đăng nhập',
+          description: error.message || 'Tên đăng nhập hoặc mật khẩu không đúng',
+          placement: 'topRight',
+        });
+      }
+    });
   };
 
   return (
@@ -91,7 +94,7 @@ export default function OfficerLogin() {
                 htmlType="submit" 
                 size="large" 
                 block 
-                loading={loading}
+                loading={loginMutation.isPending}
                 style={{ borderRadius: 12, height: 48, fontWeight: 600 }}
               >
                 Đăng nhập hệ thống

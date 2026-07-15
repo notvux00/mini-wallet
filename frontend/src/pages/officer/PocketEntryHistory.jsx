@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Card, Typography, Table, Tag, message, Input, Space } from 'antd';
-import axios from '../../utils/axios';
+import { Card, Typography, Table, Tag, Input, Space } from 'antd';
+import { usePocketEntries } from '../../hooks/useOfficer';
 import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -27,66 +27,48 @@ export default function PocketEntryHistory() {
     { title: 'Tạo lúc', dataIndex: 'createdAt', key: 'createdAt', align: 'center', render: text => new Date(text).toLocaleString('vi-VN') }
   ];
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const [searchTransRef, setSearchTransRef] = useState('');
   const [searchDebit, setSearchDebit] = useState('');
   const [searchCredit, setSearchCredit] = useState('');
   const { io } = useContext(SocketContext);
 
-  const fetchEntries = async (page = 1, transRefId = searchTransRef, debit = searchDebit, credit = searchCredit) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/officer/pocket-entries/list', {
-        page: page,
-        limit: pagination.pageSize,
-        transRefId: transRefId || undefined,
-        debit: debit || undefined,
-        credit: credit || undefined
-      });
-      const { items, total } = response.data.data;
-      
-      const formattedData = items.map(item => ({
-        key: item.id,
-        transRefId: item.transRefId,
-        stepOrder: item.stepOrder,
-        debit: item.debit,
-        credit: item.credit,
-        amount: item.amount,
-        status: item.status,
-        createdAt: item.createdAt
-      }));
+  const { data: responseData, isLoading, refetch } = usePocketEntries({
+    page: pagination.current,
+    limit: pagination.pageSize,
+    transRefId: searchTransRef || undefined,
+    debit: searchDebit || undefined,
+    credit: searchCredit || undefined
+  });
 
-      setData(formattedData);
-      setPagination(prev => ({ ...prev, current: page, total: total }));
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi tải danh sách bút toán');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const items = responseData?.items || [];
+  const total = responseData?.total || 0;
 
-  useEffect(() => {
-    fetchEntries();
-  }, []);
+  const data = items.map(item => ({
+    key: item.id,
+    transRefId: item.transRefId,
+    stepOrder: item.stepOrder,
+    debit: item.debit,
+    credit: item.credit,
+    amount: item.amount,
+    status: item.status,
+    createdAt: item.createdAt
+  }));
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', () => {
-        // Có giao dịch mới, cập nhật lại danh sách hiện tại
-        fetchEntries(pagination.current);
-      });
+      const handleUpdate = () => {
+        refetch();
+      };
+      io.socket.on('transaction_updated', handleUpdate);
+      return () => {
+        io.socket.off('transaction_updated', handleUpdate);
+      };
     }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    };
-  }, [io, pagination.current]);
+  }, [io, refetch]);
 
   const handleTableChange = (newPagination) => {
-    fetchEntries(newPagination.current);
+    setPagination({ current: newPagination.current, pageSize: newPagination.pageSize });
   };
 
   return (
@@ -99,7 +81,6 @@ export default function PocketEntryHistory() {
             onSearch={val => {
               setSearchTransRef(val);
               setPagination(prev => ({ ...prev, current: 1 }));
-              fetchEntries(1, val, searchDebit, searchCredit);
             }} 
             style={{ width: 200 }} 
             size="large"
@@ -110,7 +91,6 @@ export default function PocketEntryHistory() {
             onSearch={val => {
               setSearchDebit(val);
               setPagination(prev => ({ ...prev, current: 1 }));
-              fetchEntries(1, searchTransRef, val, searchCredit);
             }} 
             style={{ width: 160 }} 
             size="large"
@@ -121,7 +101,6 @@ export default function PocketEntryHistory() {
             onSearch={val => {
               setSearchCredit(val);
               setPagination(prev => ({ ...prev, current: 1 }));
-              fetchEntries(1, searchTransRef, searchDebit, val);
             }} 
             style={{ width: 160 }} 
             size="large"
@@ -133,9 +112,9 @@ export default function PocketEntryHistory() {
         <Table 
           columns={columns} 
           dataSource={data} 
-          pagination={{ ...pagination, showSizeChanger: false }} 
+          pagination={{ ...pagination, total, showSizeChanger: false }} 
           onChange={handleTableChange}
-          loading={loading}
+          loading={isLoading}
           rowClassName="smart-row" 
         />
       </Card>

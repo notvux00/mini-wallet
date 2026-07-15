@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from '../../utils/axios';
-import { Card, Typography, Table, Button, Space, Modal, Form, InputNumber, Input, message, Row, Col, Select } from 'antd';
+import { Card, Typography, Table, Button, Space, Modal, Form, InputNumber, Input, Row, Col, Select, notification } from 'antd';
 const { Option } = Select;
-import { DollarOutlined, PlusOutlined, BankOutlined, WalletOutlined } from '@ant-design/icons';
+import { DollarOutlined, PlusOutlined, WalletOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 import { SocketContext } from '../../context/SocketContext';
+import { useCustomers, useExecuteTransaction, usePockets, useServices, useServiceDetail } from '../../hooks/useOfficer';
 
 export default function CustomerManagement() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const [filterPhone, setFilterPhone] = useState('');
   const { io } = useContext(SocketContext);
 
@@ -20,47 +18,38 @@ export default function CustomerManagement() {
     return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`;
   };
 
-  const fetchCustomers = async (page = 1, phone = filterPhone) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/officer/customers/list', {
-        page: page,
-        limit: pagination.pageSize,
-        phone: phone || undefined
-      });
-      const { items, total } = response.data.data;
-      
-      const formattedData = items.map(item => ({
-        key: item.id,
-        phone: item.phone,
-        name: item.name || 'Thành viên MiniWallet', // Backend Customer hiện tại chưa có trường name
-        pocket: item.pocket ? item.pocket.id : 'N/A', 
-        createdAt: new Date(item.createdAt).toLocaleDateString('vi-VN'),
-        balance: item.pocket ? item.pocket.balance : 0 
-      }));
+  // Queries
+  const { data: customerData, isLoading: loadingCustomers, refetch: refetchCustomers } = useCustomers({
+    page: pagination.current,
+    limit: pagination.pageSize,
+    phone: filterPhone || undefined
+  });
 
-      setData(formattedData);
-      setPagination(prev => ({ ...prev, current: page, total: total }));
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi tải danh sách khách hàng');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: otcPocketsData } = usePockets({ limit: 100, client: 'system' });
+  const { data: servicesData } = useServices({});
+  
+  // Find cash-in service
+  const cInService = servicesData?.items?.find(s => s.action === 'cashIn' && s.status === 'active');
+  const { data: cashInServiceDetail } = useServiceDetail(cInService?.id);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  // Mutations
+  const executeTransMutation = useExecuteTransaction();
+
+  const formattedData = customerData?.items?.map(item => ({
+    key: item.id,
+    phone: item.phone,
+    name: item.name || 'Thành viên MiniWallet',
+    pocket: item.pocket ? item.pocket.id : 'N/A', 
+    createdAt: new Date(item.createdAt).toLocaleDateString('vi-VN'),
+    balance: item.pocket ? item.pocket.balance : 0 
+  })) || [];
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', () => {
-        // Cập nhật lại số dư khách hàng khi có biến động
-        fetchCustomers(pagination.current);
-      });
+      io.socket.on('transaction_updated', () => refetchCustomers());
       io.socket.on('customer_created', () => {
-        // Có người đăng ký mới -> load lại
-        fetchCustomers(1); // Load lại trang đầu
+        setPagination(prev => ({ ...prev, current: 1 }));
+        refetchCustomers();
       });
     }
     return () => {
@@ -69,53 +58,20 @@ export default function CustomerManagement() {
         io.socket.off('customer_created');
       }
     };
-  }, [io, pagination.current]);
+  }, [io, refetchCustomers]);
 
   const handleTableChange = (newPagination) => {
-    fetchCustomers(newPagination.current);
+    setPagination(newPagination);
   };
 
   const handleSearch = (value) => {
     setFilterPhone(value);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchCustomers(1, value);
   };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [form] = Form.useForm();
-  
-  const [otcPockets, setOtcPockets] = useState([]);
-  const [cashInService, setCashInService] = useState(null);
-  const [executing, setExecuting] = useState(false);
-
-  useEffect(() => {
-    // Fetch OTC pockets (System) and cash-in service config
-    const fetchConfigs = async () => {
-      try {
-        const pocketRes = await axios.post('/api/officer/pockets/list', { limit: 100, client: 'system' });
-        if (pocketRes.data?.data?.items) {
-          setOtcPockets(pocketRes.data.data.items);
-        }
-
-        const serviceRes = await axios.post('/api/officer/services/list', {});
-        if (serviceRes.data?.data?.items) {
-          const cInService = serviceRes.data.data.items.find(s => s.action === 'cashIn' && s.status === 'active');
-          if (cInService) {
-            const detailRes = await axios.post('/api/officer/services/detail', { id: cInService.id });
-            if (detailRes.data?.data) {
-              setCashInService({ ...cInService, ...detailRes.data.data });
-            } else {
-              setCashInService(cInService);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Lỗi khi tải cấu hình Nạp tiền:', err);
-      }
-    };
-    fetchConfigs();
-  }, []);
 
   const handleCashInClick = (record) => {
     setSelectedCustomer(record);
@@ -123,48 +79,54 @@ export default function CustomerManagement() {
     form.resetFields();
   };
 
-  const handleCashInSubmit = async (values) => {
-    if (!cashInService) {
-      return message.error('Không tìm thấy dịch vụ Nạp tiền (cashIn) đang active trong hệ thống.');
+  const handleCashInSubmit = (values) => {
+    const serviceConfig = { ...cInService, ...cashInServiceDetail };
+    if (!serviceConfig || !serviceConfig.id) {
+      return notification.error({ message: 'Lỗi', description: 'Không tìm thấy dịch vụ Nạp tiền (cashIn) đang active trong hệ thống.' });
     }
 
-    setExecuting(true);
-    try {
-      const actionParams = cashInService.serviceInfo?.actionParams || {};
-      const bankFieldName = actionParams.bankPocketField || 'BANKID';
-      const phoneFieldName = actionParams.receiverPhoneField || 'RECEIVERPHONE';
+    const actionParams = serviceConfig.serviceInfo?.actionParams || {};
+    const bankFieldName = actionParams.bankPocketField || 'BANKID';
+    const phoneFieldName = actionParams.receiverPhoneField || 'RECEIVERPHONE';
 
-      // Nội suy trường số tiền từ cấu hình Kế toán
-      let amountFieldName = 'AMOUNT';
-      const acctSteps = cashInService.accountingSteps || [];
-      if (acctSteps.length > 0) {
-        amountFieldName = acctSteps[0].amount;
-      } else if (cashInService.fields) {
-        const amountFieldConf = cashInService.fields.find(f => f.fieldFormat === 'number');
-        if (amountFieldConf) amountFieldName = amountFieldConf.fieldName;
-      }
+    let amountFieldName = 'AMOUNT';
+    const acctSteps = serviceConfig.accountingSteps || [];
+    if (acctSteps.length > 0) {
+      amountFieldName = acctSteps[0].amount;
+    } else if (serviceConfig.fields) {
+      const amountFieldConf = serviceConfig.fields.find(f => f.fieldFormat === 'number');
+      if (amountFieldConf) amountFieldName = amountFieldConf.fieldName;
+    }
 
-      const transData = {
-        [phoneFieldName]: selectedCustomer.phone,
-        [amountFieldName]: values.amount,
-        [bankFieldName]: values.sourcePocketId,
-        description: values.note
-      };
+    const transData = {
+      [phoneFieldName]: selectedCustomer.phone,
+      [amountFieldName]: values.amount,
+      [bankFieldName]: values.sourcePocketId,
+      description: values.note
+    };
 
-      await axios.post('/api/officer/transactions/execute', {
-        serviceId: cashInService.id || cashInService.serviceInfo?.serviceCode,
+    executeTransMutation.mutate(
+      {
+        serviceId: serviceConfig.id || serviceConfig.serviceInfo?.serviceCode,
         transData
-      });
-
-      // Nếu không văng catch tức là API thành công
-      message.success(`Nạp thành công ${values.amount.toLocaleString()} VND cho ${selectedCustomer.phone}`);
-      setIsModalVisible(false);
-      fetchCustomers(pagination.current); // Refresh data
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi nạp tiền.');
-    } finally {
-      setExecuting(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          notification.success({ 
+            message: 'Thành công', 
+            description: `Nạp thành công ${values.amount.toLocaleString()} VND cho ${selectedCustomer.phone}`
+          });
+          setIsModalVisible(false);
+          refetchCustomers();
+        },
+        onError: (error) => {
+          notification.error({ 
+            message: 'Thất bại', 
+            description: error.message || 'Có lỗi xảy ra khi nạp tiền.' 
+          });
+        }
+      }
+    );
   };
 
   const columns = [
@@ -194,10 +156,10 @@ export default function CustomerManagement() {
       <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden', marginBottom: 16 } }}>
         <Table 
           columns={columns} 
-          dataSource={data} 
-          pagination={{ ...pagination, showSizeChanger: false }} 
+          dataSource={formattedData} 
+          pagination={{ ...pagination, showSizeChanger: false, total: customerData?.total || 0 }} 
           onChange={handleTableChange}
-          loading={loading}
+          loading={loadingCustomers}
           rowClassName="smart-row" 
         />
       </Card>
@@ -238,7 +200,7 @@ export default function CustomerManagement() {
               rules={[{ required: true, message: 'Vui lòng chọn két tiền mặt!' }]}
             >
               <Select size="large" placeholder="-- Chọn Két tiền mặt --">
-                {otcPockets.map(pocket => (
+                {otcPocketsData?.items?.map(pocket => (
                   <Option key={pocket.id} value={pocket.id}>
                     <WalletOutlined style={{ marginRight: 8, color: '#0ea5e9' }} />
                     {pocket.name || 'Không tên'} - {formatId(pocket.id)} (Dư: {pocket.balance.toLocaleString('vi-VN')})
@@ -270,7 +232,7 @@ export default function CustomerManagement() {
             <Form.Item style={{ marginBottom: 0, marginTop: 32, textAlign: 'right' }}>
               <Space>
                 <Button onClick={() => setIsModalVisible(false)} size="large">Hủy bỏ</Button>
-                <Button type="primary" htmlType="submit" size="large" style={{ background: '#10b981', borderColor: '#10b981', fontWeight: 600 }}>
+                <Button type="primary" htmlType="submit" size="large" loading={executeTransMutation.isPending} style={{ background: '#10b981', borderColor: '#10b981', fontWeight: 600 }}>
                   Xác nhận Nạp tiền
                 </Button>
               </Space>

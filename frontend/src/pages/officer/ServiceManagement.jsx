@@ -1,49 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Typography, Table, Tag, Space, Button, Modal, Form, Input, Popconfirm, message } from 'antd';
+import React, { useState } from 'react';
+import { Card, Typography, Table, Tag, Space, Button, Modal, Form, Input, Popconfirm, notification } from 'antd';
 import { PlusOutlined, SettingOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import axios from '../../utils/axios';
+import { useServices, useToggleServiceStatus } from '../../hooks/useOfficer';
 
 const { Text } = Typography;
 
 export default function ServiceManagement() {
   const navigate = useNavigate();
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchServices = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.post('/api/officer/services/list');
-      if (res.data && res.data.data && res.data.data.items) {
-        setData(res.data.data.items.map(s => ({ ...s, key: s.id || s._id })));
+  // Queries
+  const { data: servicesData, isLoading, refetch } = useServices({});
+  
+  // Mutations
+  const toggleStatusMutation = useToggleServiceStatus();
+
+  const services = servicesData?.items?.map(s => ({ ...s, key: s.id || s._id })) || [];
+
+  const handleToggleStatus = (record) => {
+    toggleStatusMutation.mutate(
+      { id: record.key },
+      {
+        onSuccess: () => {
+          notification.success({ message: `Đã ${record.status === 'active' ? 'deactivate' : 'activate'} dịch vụ "${record.name}"` });
+          refetch();
+        },
+        onError: (error) => {
+          notification.error({ message: error.message || 'Lỗi khi đổi trạng thái dịch vụ.' });
+        }
       }
-    } catch (error) {
-      message.error('Lỗi khi tải danh sách dịch vụ');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchServices();
-  }, []);
-
-  const handleToggleStatus = async (record) => {
-    try {
-      await axios.post('/api/officer/services/toggle-status', { id: record.key });
-      message.success(`Đã ${record.status === 'active' ? 'deactivate' : 'activate'} dịch vụ "${record.name}"`);
-      fetchServices();
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi khi đổi trạng thái dịch vụ.');
-    }
+    );
   };
 
   const handleAddService = () => {
-    // Chuyển hướng sang ServiceBuilder thay vì dùng Modal cũ
     navigate('/officer/service-builder');
   };
 
@@ -84,7 +76,7 @@ export default function ServiceManagement() {
             onConfirm={() => handleToggleStatus(record)}
             okText="Xác nhận"
             cancelText="Hủy bỏ"
-            okButtonProps={{ danger: record.status === 'active' }}
+            okButtonProps={{ danger: record.status === 'active', loading: toggleStatusMutation.isPending }}
           >
             <Button
               size="small"
@@ -109,7 +101,7 @@ export default function ServiceManagement() {
       </div>
 
       <Card className="glass-card" styles={{ body: { padding: 0, overflow: 'hidden' } }}>
-        <Table columns={columns} dataSource={data} pagination={false} rowClassName="smart-row" />
+        <Table columns={columns} dataSource={services} pagination={false} loading={isLoading} rowClassName="smart-row" />
       </Card>
 
       <Modal

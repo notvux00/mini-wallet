@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from '../../utils/axios';
-import { Card, Typography, Table, Tag, Button, Modal, Form, Select, Input, InputNumber, message, Space, Popconfirm } from 'antd';
-import { PlusOutlined, WalletOutlined, SafetyCertificateFilled, WarningFilled, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Typography, Table, Tag, Button, Modal, Form, Select, Input, InputNumber, notification, Space, Popconfirm } from 'antd';
+import { PlusOutlined, WalletOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { SocketContext } from '../../context/SocketContext';
+import { usePockets, useCreatePocket, useTogglePocketStatus } from '../../hooks/useOfficer';
 
 const { Title, Text } = Typography;
-import { SocketContext } from '../../context/SocketContext';
 const { Option } = Select;
 
 export default function PocketManagement() {
@@ -12,6 +12,105 @@ export default function PocketManagement() {
     if (!id) return '';
     if (id.length <= 12) return id;
     return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`;
+  };
+
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+  const [filterClient, setFilterClient] = useState('');
+  const { io } = useContext(SocketContext);
+
+  // Queries
+  const { data: pocketsData, isLoading: loadingPockets, refetch: refetchPockets } = usePockets({
+    page: pagination.current,
+    limit: pagination.pageSize,
+    client: filterClient || undefined
+  });
+
+  // Mutations
+  const createPocketMutation = useCreatePocket();
+  const togglePocketStatusMutation = useTogglePocketStatus();
+
+  const formattedData = pocketsData?.items?.map(item => ({
+    key: item.id,
+    id: item.id,
+    name: item.name,
+    user: item.user,
+    client: item.client,
+    currency: item.currency,
+    balance: item.balance,
+    checksum: item.checksum,
+    state: item.state,
+    status: item.status
+  })) || [];
+
+  useEffect(() => {
+    if (io && io.socket) {
+      io.socket.on('transaction_updated', () => refetchPockets());
+      io.socket.on('customer_created', () => {
+        setPagination(prev => ({ ...prev, current: 1 }));
+        refetchPockets();
+      });
+    }
+    return () => {
+      if (io && io.socket) {
+        io.socket.off('transaction_updated');
+        io.socket.off('customer_created');
+      }
+    };
+  }, [io, refetchPockets]);
+
+  const handleTableChange = (newPagination) => {
+    setPagination(newPagination);
+  };
+
+  const handleFilterChange = (value) => {
+    setFilterClient(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
+  };
+
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [form] = Form.useForm();
+
+  const showModal = () => {
+    setIsModalVisible(true);
+    form.resetFields();
+  };
+
+  const handleCancel = () => {
+    setIsModalVisible(false);
+  };
+
+  const togglePocketStatus = (record) => {
+    togglePocketStatusMutation.mutate(
+      { id: record.key },
+      {
+        onSuccess: () => {
+          const newStatus = record.status === 'active' ? 'inactive' : 'active';
+          notification.success({ message: `Pocket ${formatId(record.id)} đã bị đổi thành ${newStatus.toUpperCase()}.` });
+          refetchPockets();
+        },
+        onError: (error) => {
+          notification.error({ message: error.message || 'Lỗi khi cập nhật trạng thái Ví' });
+        }
+      }
+    );
+  };
+
+  const handleCreate = (values) => {
+    createPocketMutation.mutate(
+      values,
+      {
+        onSuccess: () => {
+          notification.success({ message: `Tạo thành công ${values.client.toUpperCase()} Pocket!` });
+          setIsModalVisible(false);
+          form.resetFields();
+          setPagination(prev => ({ ...prev, current: 1 }));
+          refetchPockets();
+        },
+        onError: (error) => {
+          notification.error({ message: error.message || 'Lỗi khi tạo Pocket!' });
+        }
+      }
+    );
   };
 
   const columns = [
@@ -28,6 +127,7 @@ export default function PocketManagement() {
         <Popconfirm 
           title={record.status === 'active' ? "Vô hiệu hóa (Inactive) Pocket này?" : "Kích hoạt (Active) Pocket này?"} 
           onConfirm={() => togglePocketStatus(record)}
+          okButtonProps={{ loading: togglePocketStatusMutation.isPending }}
         >
           <Button 
             size="small" 
@@ -42,117 +142,6 @@ export default function PocketManagement() {
       </Space>
     )}
   ];
-
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [filterClient, setFilterClient] = useState('');
-  const { io } = useContext(SocketContext);
-
-  const fetchPockets = async (page = 1, client = filterClient) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/officer/pockets/list', {
-        page: page,
-        limit: pagination.pageSize,
-        client: client || undefined
-      });
-      const { items, total } = response.data.data;
-      
-      const formattedData = items.map(item => ({
-        key: item.id,
-        id: item.id,
-        name: item.name,
-        user: item.user,
-        client: item.client,
-        currency: item.currency,
-        balance: item.balance,
-        checksum: item.checksum,
-        state: item.state,
-        status: item.status
-      }));
-
-      setData(formattedData);
-      setPagination(prev => ({ ...prev, current: page, total: total }));
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi tải danh sách Ví');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPockets();
-  }, []);
-
-  useEffect(() => {
-    if (io && io.socket) {
-      io.socket.on('transaction_updated', () => {
-        // Cập nhật lại số dư ví khi có giao dịch
-        fetchPockets(pagination.current);
-      });
-      io.socket.on('customer_created', () => {
-        // Có ví khách hàng mới -> load lại trang đầu
-        fetchPockets(1);
-      });
-    }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-        io.socket.off('customer_created');
-      }
-    };
-  }, [io, pagination.current]);
-
-  const handleTableChange = (newPagination) => {
-    fetchPockets(newPagination.current);
-  };
-
-  const handleFilterChange = (value) => {
-    setFilterClient(value);
-    setPagination(prev => ({ ...prev, current: 1 }));
-    fetchPockets(1, value);
-  };
-
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [form] = Form.useForm();
-
-  const showModal = () => {
-    setIsModalVisible(true);
-    form.resetFields();
-  };
-
-  const handleCancel = () => {
-    setIsModalVisible(false);
-  };
-
-  const togglePocketStatus = async (record) => {
-    try {
-      await axios.post('/api/officer/pockets/toggle-status', { id: record.key });
-      
-      const newStatus = record.status === 'active' ? 'inactive' : 'active';
-      message.success(`Pocket ${formatId(record.id)} đã bị đổi thành ${newStatus.toUpperCase()}.`);
-      
-      fetchPockets(pagination.current, filterClient);
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái Ví');
-    }
-  };
-
-  const handleCreate = async (values) => {
-    try {
-      await axios.post('/api/officer/pockets/create', values);
-      
-      message.success(`Tạo thành công ${values.client.toUpperCase()} Pocket!`);
-      setIsModalVisible(false);
-      form.resetFields();
-      
-      setPagination(prev => ({ ...prev, current: 1 }));
-      fetchPockets(1, filterClient);
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi khi tạo Pocket!');
-    }
-  };
 
   return (
     <div>
@@ -174,10 +163,10 @@ export default function PocketManagement() {
       <Card className="glass-card">
         <Table 
           columns={columns} 
-          dataSource={data} 
-          pagination={{ ...pagination, showSizeChanger: false }} 
+          dataSource={formattedData} 
+          pagination={{ ...pagination, showSizeChanger: false, total: pocketsData?.total || 0 }} 
           onChange={handleTableChange}
-          loading={loading}
+          loading={loadingPockets}
           rowClassName="smart-row" 
         />
       </Card>
@@ -188,7 +177,7 @@ export default function PocketManagement() {
         onCancel={handleCancel}
         onOk={() => form.submit()}
         okText="Tạo Ví"
-        okButtonProps={{ style: { background: '#0ea5e9' } }}
+        okButtonProps={{ style: { background: '#0ea5e9' }, loading: createPocketMutation.isPending }}
         cancelText="Hủy"
         destroyOnHidden
       >

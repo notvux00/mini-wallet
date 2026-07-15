@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Card, Typography, Form, Input, InputNumber, Button, Modal, Steps, Divider, Result, Row, Col, message, Spin, Select } from 'antd';
+import { Card, Typography, Form, Input, InputNumber, Button, Modal, Steps, Divider, Result, Row, Col, notification, Spin, Select } from 'antd';
 import { MobileOutlined, DollarOutlined, LockOutlined, ArrowRightOutlined, SwapOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import axios from '../../utils/axios';
 import { SocketContext } from '../../context/SocketContext';
+import { useDashboard } from '../../hooks/useCustomer';
+import { useServices, useRequestTransaction, useConfirmTransaction, useVerifyTransaction } from '../../hooks/useTransaction';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { Title, Text } = Typography;
 
@@ -11,80 +13,54 @@ export default function TransferP2P() {
   const [currentStep, setCurrentStep] = useState(0);
   const [form] = Form.useForm();
   const [pinForm] = Form.useForm();
-  const [previewData, setPreviewData] = useState(null);   // { transRefId, preview }
+  const [previewData, setPreviewData] = useState(null);
   const [transRefId, setTransRefId] = useState(null);
-  const [loading, setLoading] = useState(true); // set true initially
-  const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
-  const [balance, setBalance] = useState(0);
+  
   const { io } = useContext(SocketContext);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  // Fetch danh sách service P2P và số dư
+  // Queries & Mutations
+  const { data: dashboardData } = useDashboard();
+  const { data: services = [], isLoading: isLoadingServices } = useServices('none');
+  const requestMutation = useRequestTransaction();
+  const confirmMutation = useConfirmTransaction();
+  const verifyMutation = useVerifyTransaction();
+
+  const balance = dashboardData?.balance || 0;
+  const isLoading = isLoadingServices || requestMutation.isPending || confirmMutation.isPending || verifyMutation.isPending;
+
   useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const res = await axios.post('/api/customer/services/list', { action: 'none' });
-        const list = res.data?.data || [];
-        setServices(list);
-        if (list.length === 1) setSelectedServiceId(list[0].id);
-      } catch {
-        // ignore
-      }
-    };
-    
-    const fetchBalance = async () => {
-      try {
-        const res = await axios.post('/api/customer/dashboard');
-        if (res.data?.data) {
-          setBalance(res.data.data.balance || 0);
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    const init = async () => {
-      setLoading(true);
-      await Promise.all([fetchServices(), fetchBalance()]);
-      setLoading(false);
-    };
-
-    init();
-  }, []);
+    if (services.length === 1 && !selectedServiceId) {
+      setSelectedServiceId(services[0].id);
+    }
+  }, [services, selectedServiceId]);
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', () => {
-        // Cập nhật lại số dư trên màn hình chuyển tiền nếu có biến động
-        const fetchBalance = async () => {
-          try {
-            const res = await axios.post('/api/customer/dashboard');
-            if (res.data?.data) {
-              setBalance(res.data.data.balance || 0);
-            }
-          } catch {}
-        };
-        fetchBalance();
-      });
+      const handleTransactionUpdate = () => {
+        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
+      };
+      io.socket.on('transaction_updated', handleTransactionUpdate);
+      return () => {
+        io.socket.off('transaction_updated', handleTransactionUpdate);
+      };
     }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    };
-  }, [io]);
+  }, [io, queryClient]);
 
-  // BƯỚC 1: Gọi /api/customer/transaction/request → nhận preview
   const handleRequest = async (values) => {
-    if (!selectedServiceId) return message.warning('Vui lòng chọn loại dịch vụ chuyển tiền.');
-    setLoading(true);
+    if (!selectedServiceId) {
+      return notification.warning({ message: 'Vui lòng chọn loại dịch vụ chuyển tiền.' });
+    }
+    
     try {
       const selectedService = services.find(s => s.id === selectedServiceId);
       const amountFieldName = selectedService?.amountField || 'AMOUNT';
       const receiverFieldName = selectedService?.receiverPhoneField || 'RECEIVERPHONE';
       
-      const res = await axios.post('/api/customer/transaction/request', {
+      // BƯỚC 1: Gọi Request
+      const data = await requestMutation.mutateAsync({
         serviceId: selectedServiceId,
         transData: {
           [receiverFieldName]: values.receiverPhone,
@@ -92,11 +68,11 @@ export default function TransferP2P() {
           DESCRIPTION: values.description || `Chuyển tiền cho ${values.receiverPhone}`,
         },
       });
-      const data = res.data.data;
       setTransRefId(data.transRefId);
 
-      // BƯỚC 2: Gọi Confirm (theo đúng chuẩn quy trình 3 bước)
-      await axios.post('/api/customer/transaction/confirm', { transRefId: data.transRefId });
+      // BƯỚC 2: Gọi Confirm
+      await confirmMutation.mutateAsync(data.transRefId);
+      
       const authMethod = selectedService?.authMethod || 'PIN';
       setPreviewData({
         receiver: values.receiverPhone,
@@ -110,57 +86,49 @@ export default function TransferP2P() {
       });
 
       if (authMethod === 'NONE') {
-        const verifyRes = await axios.post('/api/customer/transaction/verify', {
+        const verifyData = await verifyMutation.mutateAsync({
           transRefId: data.transRefId,
           authCode: 'NONE',
         });
-        if (verifyRes.data.data) {
+        if (verifyData) {
           setCurrentStep(2);
+          queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
         }
       } else {
         setCurrentStep(1);
       }
     } catch (err) {
-      message.error(err.message || 'Lỗi khi tạo giao dịch.');
-    } finally {
-      setLoading(false);
+      notification.error({ message: 'Lỗi', description: err.message || 'Lỗi khi tạo giao dịch.' });
     }
   };
 
-  // BƯỚC 3: Gọi /api/customer/transaction/verify với PIN
   const handleVerifyPin = async (values) => {
-    setLoading(true);
     try {
-      const res = await axios.post('/api/customer/transaction/verify', {
+      const verifyData = await verifyMutation.mutateAsync({
         transRefId,
         authCode: previewData?.authMethod === 'NONE' ? 'NONE' : values.pin,
       });
-      if (res.data.data) {
+      if (verifyData) {
         setCurrentStep(2);
         pinForm.resetFields();
+        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
       }
     } catch (err) {
-      let errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.';
+      let errorMsg = err.message || 'Mã PIN không đúng hoặc giao dịch đã hết hạn.';
       const rawError = errorMsg;
-      
       if (errorMsg.includes(': ')) {
         errorMsg = errorMsg.substring(errorMsg.indexOf(': ') + 2);
       }
-      
       if (rawError.includes('PIN_LOCKED') || rawError.includes('INVALID_STATUS')) {
         Modal.error({
           title: 'Giao dịch thất bại',
           content: errorMsg,
           okText: 'Về trang chủ',
-          onOk: () => {
-            navigate('/app/home');
-          }
+          onOk: () => navigate('/app/home')
         });
       } else {
-        message.error(errorMsg);
+        notification.error({ message: 'Lỗi xác thực', description: errorMsg });
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -194,20 +162,14 @@ export default function TransferP2P() {
 
       <Steps
         current={currentStep}
-        items={[
-          { title: 'Thông tin' },
-          { title: 'Xác nhận PIN' },
-          { title: 'Hoàn thành' }
-        ]}
+        items={[{ title: 'Thông tin' }, { title: 'Xác nhận PIN' }, { title: 'Hoàn thành' }]}
         style={{ marginBottom: 32 }}
       />
 
-      {/* BƯỚC 1 — Nhập thông tin */}
       {currentStep === 0 && (
         <Card className="glass-card" style={{ borderRadius: 16 }}>
-          <Spin spinning={loading}>
-            
-            {!loading && services.length === 0 ? (
+          <Spin spinning={isLoading}>
+            {!isLoadingServices && services.length === 0 ? (
               <Result
                 status="warning"
                 title="Dịch vụ tạm ngưng"
@@ -220,85 +182,73 @@ export default function TransferP2P() {
                   <Text strong style={{ fontSize: 18, color: '#0ea5e9' }}>{balance.toLocaleString()} VND</Text>
                 </div>
 
-            {services.length > 1 && (
-              <Form.Item label="Dịch vụ" style={{ marginBottom: 16 }}>
-                <Select
-                  size="large"
-                  value={selectedServiceId}
-                  onChange={setSelectedServiceId}
-                  options={services.map(s => ({ value: s.id, label: s.name }))}
-                />
-              </Form.Item>
-            )}
-            
-            <div style={{ marginBottom: 24 }}>
-              <Text type="secondary" style={{ fontStyle: 'italic' }}>
-                <DollarOutlined style={{ marginRight: 4 }} /> 
-                {getFeeDescription()}
-              </Text>
-            </div>
+                {services.length > 1 && (
+                  <Form.Item label="Dịch vụ" style={{ marginBottom: 16 }}>
+                    <Select
+                      size="large"
+                      value={selectedServiceId}
+                      onChange={setSelectedServiceId}
+                      options={services.map(s => ({ value: s.id, label: s.name }))}
+                    />
+                  </Form.Item>
+                )}
+                
+                <div style={{ marginBottom: 24 }}>
+                  <Text type="secondary" style={{ fontStyle: 'italic' }}>
+                    <DollarOutlined style={{ marginRight: 4 }} /> 
+                    {getFeeDescription()}
+                  </Text>
+                </div>
 
-            <Form form={form} layout="vertical" onFinish={handleRequest}>
-              <Form.Item
-                name="receiverPhone"
-                label="Số điện thoại người nhận"
-                rules={[{ required: true, message: 'Nhập số điện thoại người nhận!' }]}
-              >
-                <Input size="large" prefix={<MobileOutlined />} placeholder="VD: 0902222222" />
-              </Form.Item>
-
-              <Form.Item
-                name="amount"
-                label="Số tiền (VND)"
-                rules={[
-                  { required: true, message: 'Nhập số tiền!' },
-                  { type: 'number', min: 1, message: 'Số tiền không hợp lệ' }
-                ]}
-              >
-                <InputNumber
-                  size="large"
-                  style={{ width: '100%' }}
-                  prefix={<DollarOutlined />}
-                  formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={v => v.replace(/,/g, '')}
-                  placeholder="50,000"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="description"
-                label="Ghi chú (Không bắt buộc)"
-              >
-                <Input.TextArea
-                  rows={2}
-                  size="large"
-                  placeholder="Ví dụ: Tiền ăn trưa, Mua đồ..."
-                  maxLength={100}
-                />
-              </Form.Item>
-
-              <Button
-                type="primary"
-                size="large"
-                block
-                htmlType="submit"
-                icon={<ArrowRightOutlined />}
-                style={{ marginTop: 8, height: 48 }}
-              >
-                Tiếp tục
-              </Button>
-            </Form>
-            </>
+                <Form form={form} layout="vertical" onFinish={handleRequest}>
+                  <Form.Item
+                    name="receiverPhone"
+                    label="Số điện thoại người nhận"
+                    rules={[{ required: true, message: 'Nhập số điện thoại người nhận!' }]}
+                  >
+                    <Input size="large" prefix={<MobileOutlined />} placeholder="VD: 0902222222" />
+                  </Form.Item>
+                  <Form.Item
+                    name="amount"
+                    label="Số tiền (VND)"
+                    rules={[
+                      { required: true, message: 'Nhập số tiền!' },
+                      { type: 'number', min: 1, message: 'Số tiền không hợp lệ' }
+                    ]}
+                  >
+                    <InputNumber
+                      size="large"
+                      style={{ width: '100%' }}
+                      prefix={<DollarOutlined />}
+                      formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      parser={v => v.replace(/,/g, '')}
+                      placeholder="50,000"
+                    />
+                  </Form.Item>
+                  <Form.Item name="description" label="Ghi chú (Không bắt buộc)">
+                    <Input.TextArea rows={2} size="large" placeholder="Ví dụ: Tiền ăn trưa..." maxLength={100} />
+                  </Form.Item>
+                  <Button
+                    type="primary"
+                    size="large"
+                    block
+                    htmlType="submit"
+                    icon={<ArrowRightOutlined />}
+                    style={{ marginTop: 8, height: 48 }}
+                    loading={requestMutation.isPending || confirmMutation.isPending}
+                  >
+                    Tiếp tục
+                  </Button>
+                </Form>
+              </>
             )}
           </Spin>
         </Card>
       )}
 
-      {/* BƯỚC 2 — Preview + nhập PIN */}
       {currentStep === 1 && previewData && (
         <Card className="glass-card" style={{ borderRadius: 16 }}>
-          <Spin spinning={loading}>
-            {/* Preview thông tin giao dịch */}
+          <Spin spinning={isLoading}>
             <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12, marginBottom: 24 }}>
               <Row justify="space-between" style={{ marginBottom: 8 }}>
                 <Text type="secondary">Người nhận</Text>
@@ -328,7 +278,6 @@ export default function TransferP2P() {
               </div>
             </div>
 
-            {/* Form nhập PIN */}
             <Form form={pinForm} layout="vertical" onFinish={handleVerifyPin}>
               {previewData?.authMethod === 'PIN' ? (
                 <Form.Item
@@ -357,13 +306,13 @@ export default function TransferP2P() {
 
               <Row gutter={12}>
                 <Col span={10}>
-                  <Button block size="large" onClick={() => setCurrentStep(0)}>
+                  <Button block size="large" onClick={() => setCurrentStep(0)} disabled={verifyMutation.isPending}>
                     Quay lại
                   </Button>
                 </Col>
                 <Col span={14}>
-                  <Button type="primary" block size="large" htmlType="submit" danger>
-                    Xác nhận chuyển tiền
+                  <Button type="primary" block size="large" htmlType="submit" danger loading={verifyMutation.isPending}>
+                    Xác nhận
                   </Button>
                 </Col>
               </Row>
@@ -372,7 +321,6 @@ export default function TransferP2P() {
         </Card>
       )}
 
-      {/* BƯỚC 3 — Thành công */}
       {currentStep === 2 && (
         <Card className="glass-card" style={{ borderRadius: 16 }}>
           <Result

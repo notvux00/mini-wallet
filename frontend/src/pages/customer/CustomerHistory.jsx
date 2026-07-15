@@ -1,57 +1,47 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Card, Typography, Table, Tag, message } from 'antd';
-import axios from '../../utils/axios';
+import { Card, Typography, Table, Tag, notification } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { SocketContext } from '../../context/SocketContext';
+import { useHistory } from '../../hooks/useCustomer';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { Title, Text } = Typography;
 
 export default function CustomerHistory() {
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const { io } = useContext(SocketContext);
+  const queryClient = useQueryClient();
 
-  const fetchHistory = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/customer/transactions/history', {
-        page: page,
-        limit: pagination.pageSize
-      });
-      setHistory(response.data.data?.items || []);
-      // Giả sử API trả về total count trong tương lai, hiện tại cứ để tạm
-    } catch (error) {
-      console.error('Không tải được lịch sử', error);
-      message.error('Không thể tải lịch sử giao dịch.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: historyData, isLoading, isError, error } = useHistory({
+    page: pagination.current,
+    limit: pagination.pageSize
+  });
+
+  const history = historyData?.items || [];
 
   useEffect(() => {
-    fetchHistory(pagination.current);
-  }, []);
+    if (isError) {
+      notification.error({ message: 'Lỗi', description: error.message || 'Không thể tải lịch sử giao dịch.' });
+    }
+  }, [isError, error]);
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', (msg) => {
+      const handleTransactionUpdate = (msg) => {
         if (msg?.transaction?.status === 'done') {
-          message.success('Có giao dịch mới được hoàn tất!');
+          notification.success({ message: 'Thành công', description: 'Có giao dịch mới được hoàn tất!' });
         }
-        fetchHistory(pagination.current);
-      });
+        queryClient.invalidateQueries({ queryKey: ['customerHistory'] });
+      };
+      io.socket.on('transaction_updated', handleTransactionUpdate);
+      return () => {
+        io.socket.off('transaction_updated', handleTransactionUpdate);
+      };
     }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    };
-  }, [io, pagination.current]);
+  }, [io, queryClient]);
 
   const handleTableChange = (newPagination) => {
     setPagination(newPagination);
-    fetchHistory(newPagination.current);
   };
 
   const columns = [
@@ -115,7 +105,7 @@ export default function CustomerHistory() {
           dataSource={history} 
           rowKey="id"
           pagination={pagination}
-          loading={loading}
+          loading={isLoading}
           onChange={handleTableChange}
         />
       </Card>

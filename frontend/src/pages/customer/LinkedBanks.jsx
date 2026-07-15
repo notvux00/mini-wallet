@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from '../../utils/axios';
-import { Card, Typography, List, Button, Modal, Form, Input, InputNumber, message, Tag, Space, Alert, Steps, Row, Col, Spin, Radio, Result, Select, Divider } from 'antd';
+import { Card, Typography, List, Button, Modal, Form, Input, InputNumber, notification, Tag, Space, Alert, Steps, Row, Col, Spin, Select, Divider, Result } from 'antd';
 import { PlusOutlined, BankOutlined, CreditCardOutlined, SafetyCertificateOutlined, ArrowUpOutlined, ArrowDownOutlined, ArrowRightOutlined, LockOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { SocketContext } from '../../context/SocketContext';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDashboard, useLinkedBanks, useRequestLinkBank, useVerifyLinkBank, useUnlinkBank } from '../../hooks/useCustomer';
+import { useServices, useRequestTransaction, useConfirmTransaction, useVerifyTransaction } from '../../hooks/useTransaction';
 
 const { Title, Text } = Typography;
 
 export default function LinkedBanks() {
-  const [links, setLinks] = useState([]);
-  const [banks, setBanks] = useState([]);
-  const [balance, setBalance] = useState(0);
-  const [loading, setLoading] = useState(true);
   const { io } = useContext(SocketContext);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // State for Bank Linking
   const [isLinkModalVisible, setIsLinkModalVisible] = useState(false);
@@ -30,81 +29,76 @@ export default function LinkedBanks() {
   const [selectedLink, setSelectedLink] = useState(null);
   const [transRefId, setTransRefId] = useState(null);
   const [previewData, setPreviewData] = useState(null);
-  const [servicesConfig, setServicesConfig] = useState([]);
   
   const [transForm] = Form.useForm();
   const [pinForm] = Form.useForm();
 
-  const fetchLinksAndBalance = async () => {
-    try {
-      const [linkRes, balRes, svcRes] = await Promise.all([
-        axios.post('/api/customer/bank/list'),
-        axios.post('/api/customer/dashboard'),
-        axios.post('/api/customer/services/list')
-      ]);
-      setLinks(linkRes.data?.data?.links || []);
-      setBanks(linkRes.data?.data?.banks || []);
-      setBalance(balRes.data?.data?.balance || 0);
-      setServicesConfig(svcRes.data?.data || []);
-    } catch (error) {
-      console.error('Lỗi tải dữ liệu', error);
-      message.error('Lỗi tải dữ liệu ngân hàng');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Queries & Mutations
+  const { data: dashboardData } = useDashboard();
+  const { data: linkedBanksData, isLoading: isLoadingLinkedBanks } = useLinkedBanks();
+  const { data: servicesConfig = [], isLoading: isLoadingServices } = useServices();
+  
+  const requestLinkMutation = useRequestLinkBank();
+  const verifyLinkMutation = useVerifyLinkBank();
+  const unlinkMutation = useUnlinkBank();
+  
+  const requestTransMutation = useRequestTransaction();
+  const confirmTransMutation = useConfirmTransaction();
+  const verifyTransMutation = useVerifyTransaction();
 
-  useEffect(() => {
-    fetchLinksAndBalance();
-  }, []);
+  const balance = dashboardData?.balance || 0;
+  const links = linkedBanksData?.links || [];
+  const banks = linkedBanksData?.banks || [];
+
+  const isLoading = isLoadingLinkedBanks || isLoadingServices || requestLinkMutation.isPending || verifyLinkMutation.isPending || unlinkMutation.isPending || requestTransMutation.isPending || confirmTransMutation.isPending || verifyTransMutation.isPending;
 
   useEffect(() => {
     if (io && io.socket) {
-      io.socket.on('transaction_updated', () => {
-        fetchLinksAndBalance();
-      });
+      const handleTransactionUpdate = () => {
+        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['linkedBanks'] });
+      };
+      io.socket.on('transaction_updated', handleTransactionUpdate);
+      return () => {
+        io.socket.off('transaction_updated', handleTransactionUpdate);
+      };
     }
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    };
-  }, [io]);
+  }, [io, queryClient]);
 
   // --- BANK LINKING METHODS ---
   const handleRequestLink = async (values) => {
     try {
-      const response = await axios.post('/api/customer/bank/request-link', values);
-      setCurrentLinkId(response.data.data.linkId);
-      if (response.data.data._devOtp) setDevOtp(response.data.data._devOtp);
+      const data = await requestLinkMutation.mutateAsync(values);
+      setCurrentLinkId(data.linkId);
+      if (data._devOtp) setDevOtp(data._devOtp);
       setIsLinkModalVisible(false);
       setIsOtpModalVisible(true);
-      message.success('Vui lòng nhập mã OTP để xác thực');
+      notification.success({ message: 'Vui lòng nhập mã OTP để xác thực' });
     } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi gửi yêu cầu liên kết');
+      notification.error({ message: 'Lỗi gửi yêu cầu liên kết', description: error.message });
     }
   };
 
   const handleVerifyOtp = async (values) => {
     try {
-      await axios.post('/api/customer/bank/verify-link', { linkId: currentLinkId, otp: values.otp });
-      message.success('Liên kết thẻ thành công!');
+      await verifyLinkMutation.mutateAsync({ linkId: currentLinkId, otp: values.otp });
+      notification.success({ message: 'Liên kết thẻ thành công!' });
       setIsOtpModalVisible(false);
       linkForm.resetFields();
       otpForm.resetFields();
-      fetchLinksAndBalance();
+      queryClient.invalidateQueries({ queryKey: ['linkedBanks'] });
     } catch (error) {
-      message.error(error.response?.data?.message || 'Mã OTP không đúng');
+      notification.error({ message: 'Lỗi xác thực', description: error.message });
     }
   };
 
   const handleUnlink = async (linkId) => {
     try {
-      await axios.post('/api/customer/bank/unlink', { linkId });
-      message.success('Đã hủy liên kết thẻ');
-      fetchLinksAndBalance();
+      await unlinkMutation.mutateAsync({ linkId });
+      notification.success({ message: 'Đã hủy liên kết thẻ' });
+      queryClient.invalidateQueries({ queryKey: ['linkedBanks'] });
     } catch (error) {
-      message.error('Lỗi hủy liên kết');
+      notification.error({ message: 'Lỗi hủy liên kết', description: error.message });
     }
   };
 
@@ -129,21 +123,19 @@ export default function LinkedBanks() {
   };
 
   const handleTransRequest = async (values) => {
-    setLoading(true);
     try {
       const serviceId = transAction === 'deposit' ? 'BANK_DEPOSIT' : 'BANK_WITHDRAW';
       const svcConfig = servicesConfig.find(s => s.code === serviceId);
       
       if (!svcConfig) {
-        message.error(`Dịch vụ ${serviceId} chưa được cấu hình. Vui lòng F5 lại trang!`);
-        setLoading(false);
-        return;
+        return notification.error({ message: 'Lỗi', description: `Dịch vụ ${serviceId} chưa được cấu hình.` });
       }
       
       const bankLinkField = svcConfig?.bankLinkField || 'BANK_LINK_ID';
       const amountField = svcConfig?.amountField || 'AMOUNT';
 
-      const res = await axios.post('/api/customer/transaction/request', {
+      // BƯỚC 1: Request
+      const data = await requestTransMutation.mutateAsync({
         serviceId: svcConfig?.id,
         transData: {
           [bankLinkField]: selectedLink.id,
@@ -151,11 +143,10 @@ export default function LinkedBanks() {
           DESCRIPTION: values.description
         },
       });
-      const data = res.data.data;
       setTransRefId(data.transRefId);
 
-      // Confirm ngay lập tức
-      await axios.post('/api/customer/transaction/confirm', { transRefId: data.transRefId });
+      // BƯỚC 2: Confirm
+      await confirmTransMutation.mutateAsync(data.transRefId);
       
       setPreviewData({
         ...data.preview,
@@ -163,44 +154,38 @@ export default function LinkedBanks() {
       });
       setTransStep(1); // Chuyển sang bước xác nhận & PIN
     } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi tạo giao dịch');
-    } finally {
-      setLoading(false);
+      notification.error({ message: 'Lỗi tạo giao dịch', description: error.message });
     }
   };
 
   const handleTransVerify = async (values) => {
-    setLoading(true);
     try {
-      await axios.post('/api/customer/transaction/verify', {
+      const verifyData = await verifyTransMutation.mutateAsync({
         transRefId,
         authCode: values.pin,
       });
-      setTransStep(2); // Chuyển sang bước hoàn thành
-      fetchLinksAndBalance(); // Cập nhật số dư
-    } catch (err) {
-      let errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message || 'Mã PIN không đúng hoặc giao dịch thất bại';
-      const rawError = errorMsg;
       
+      if (verifyData) {
+        setTransStep(2); // Chuyển sang bước hoàn thành
+        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
+      }
+    } catch (err) {
+      let errorMsg = err.message || 'Mã PIN không đúng hoặc giao dịch thất bại';
+      const rawError = errorMsg;
       if (errorMsg.includes(': ')) {
         errorMsg = errorMsg.substring(errorMsg.indexOf(': ') + 2);
       }
-      
       if (rawError.includes('PIN_LOCKED') || rawError.includes('INVALID_STATUS')) {
         Modal.error({
           title: 'Giao dịch thất bại',
           content: errorMsg,
           okText: 'Về trang chủ',
-          onOk: () => {
-            navigate('/app/home');
-          }
+          onOk: () => navigate('/app/home')
         });
       } else {
-        message.error(errorMsg);
+        notification.error({ message: 'Lỗi xác thực', description: errorMsg });
         pinForm.resetFields();
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -209,10 +194,6 @@ export default function LinkedBanks() {
     { title: 'Xác nhận & PIN' },
     { title: 'Hoàn thành' },
   ];
-
-  if (loading && links.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" /></div>;
-  }
 
   return (
     <div>
@@ -231,38 +212,40 @@ export default function LinkedBanks() {
       </Card>
 
       <Card>
-        {links.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <CreditCardOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-            <br />
-            <Text type="secondary">Chưa có thẻ nào được liên kết</Text>
-          </div>
-        ) : (
-          <List
-            itemLayout="horizontal"
-            dataSource={links}
-            renderItem={item => (
-              <List.Item
-                actions={[
-                  <Button type="primary" ghost icon={<DownloadOutlined />} onClick={() => openTransactionModal(item, 'deposit')}>Nạp tiền</Button>,
-                  <Button icon={<UploadOutlined />} onClick={() => openTransactionModal(item, 'withdraw')}>Rút tiền</Button>,
-                  <Button danger type="text" onClick={() => handleUnlink(item.id)}>Hủy liên kết</Button>
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={<BankOutlined style={{ fontSize: 32, color: '#10b981' }} />}
-                  title={<Text strong>{item.bank?.name || 'Ngân hàng'}</Text>}
-                  description={
-                    <Space direction="vertical" size="small">
-                      <Text code>{item.cardNumber}</Text>
-                      <Text type="secondary">{item.cardHolder.toUpperCase()}</Text>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        )}
+        <Spin spinning={isLoadingLinkedBanks || unlinkMutation.isPending}>
+          {links.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <CreditCardOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
+              <br />
+              <Text type="secondary">Chưa có thẻ nào được liên kết</Text>
+            </div>
+          ) : (
+            <List
+              itemLayout="horizontal"
+              dataSource={links}
+              renderItem={item => (
+                <List.Item
+                  actions={[
+                    <Button type="primary" ghost icon={<DownloadOutlined />} onClick={() => openTransactionModal(item, 'deposit')}>Nạp tiền</Button>,
+                    <Button icon={<UploadOutlined />} onClick={() => openTransactionModal(item, 'withdraw')}>Rút tiền</Button>,
+                    <Button danger type="text" onClick={() => handleUnlink(item.id)}>Hủy liên kết</Button>
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={<BankOutlined style={{ fontSize: 32, color: '#10b981' }} />}
+                    title={<Text strong>{item.bank?.name || 'Ngân hàng'}</Text>}
+                    description={
+                      <Space direction="vertical" size="small">
+                        <Text code>{item.cardNumber}</Text>
+                        <Text type="secondary">{item.cardHolder.toUpperCase()}</Text>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          )}
+        </Spin>
       </Card>
 
       {/* Modal 1: Nhập thông tin thẻ (Link New Bank) */}
@@ -274,6 +257,7 @@ export default function LinkedBanks() {
         okText="Tiếp tục"
         cancelText="Hủy"
         destroyOnClose
+        confirmLoading={requestLinkMutation.isPending}
       >
         <Form form={linkForm} layout="vertical" onFinish={handleRequestLink}>
           <Form.Item name="bankId" label="Chọn Ngân hàng" rules={[{ required: true, message: 'Vui lòng chọn ngân hàng' }]}>
@@ -309,6 +293,7 @@ export default function LinkedBanks() {
         okText="Xác nhận"
         cancelText="Hủy"
         destroyOnClose
+        confirmLoading={verifyLinkMutation.isPending}
       >
         <Alert message={devOtp ? `Mã OTP giả lập là: ${devOtp}` : "Đang chờ OTP gửi về số điện thoại..."} type="info" showIcon style={{ marginBottom: 16 }} />
         <Form form={otpForm} layout="vertical" onFinish={handleVerifyOtp}>
@@ -332,34 +317,36 @@ export default function LinkedBanks() {
         <div style={{ minHeight: 200 }}>
           {/* STEP 0: NHẬP SỐ TIỀN */}
           <div style={{ display: transStep === 0 ? 'block' : 'none' }}>
-            {selectedLink && (
-              <div style={{ marginBottom: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <Text type="secondary">Nguồn tiền: </Text>
-                <Text strong>{selectedLink.bank?.name} - {selectedLink.cardNumber}</Text>
-              </div>
-            )}
-            <Form form={transForm} layout="vertical" onFinish={handleTransRequest}>
-              <Form.Item name="amount" label="Số tiền (VND)" rules={[{ required: true, message: 'Vui lòng nhập số tiền!' }]}>
-                <InputNumber
-                  style={{ width: '100%', fontSize: 18 }}
-                  formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                  size="large"
-                  placeholder="Nhập số tiền..."
-                  min={10000}
-                />
-              </Form.Item>
-              <Form.Item name="description" label="Ghi chú">
-                <Input.TextArea
-                  rows={2}
-                  size="large"
-                  maxLength={100}
-                />
-              </Form.Item>
-              <Button type="primary" htmlType="submit" size="large" block loading={loading} icon={<ArrowRightOutlined />} style={{ background: '#0ea5e9', marginTop: 16 }}>
-                Tiếp tục
-              </Button>
-            </Form>
+            <Spin spinning={isLoadingServices}>
+              {selectedLink && (
+                <div style={{ marginBottom: 24, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <Text type="secondary">Nguồn tiền: </Text>
+                  <Text strong>{selectedLink.bank?.name} - {selectedLink.cardNumber}</Text>
+                </div>
+              )}
+              <Form form={transForm} layout="vertical" onFinish={handleTransRequest}>
+                <Form.Item name="amount" label="Số tiền (VND)" rules={[{ required: true, message: 'Vui lòng nhập số tiền!' }]}>
+                  <InputNumber
+                    style={{ width: '100%', fontSize: 18 }}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    size="large"
+                    placeholder="Nhập số tiền..."
+                    min={10000}
+                  />
+                </Form.Item>
+                <Form.Item name="description" label="Ghi chú">
+                  <Input.TextArea
+                    rows={2}
+                    size="large"
+                    maxLength={100}
+                  />
+                </Form.Item>
+                <Button type="primary" htmlType="submit" size="large" block loading={requestTransMutation.isPending || confirmTransMutation.isPending} icon={<ArrowRightOutlined />} style={{ background: '#0ea5e9', marginTop: 16 }}>
+                  Tiếp tục
+                </Button>
+              </Form>
+            </Spin>
           </div>
 
           {/* STEP 1: XÁC NHẬN & NHẬP PIN */}
@@ -419,10 +406,10 @@ export default function LinkedBanks() {
 
               <Row gutter={16} style={{ marginTop: 24 }}>
                 <Col span={12}>
-                  <Button size="large" block onClick={() => setTransStep(0)} disabled={loading}>Quay lại</Button>
+                  <Button size="large" block onClick={() => setTransStep(0)} disabled={verifyTransMutation.isPending}>Quay lại</Button>
                 </Col>
                 <Col span={12}>
-                  <Button type="primary" htmlType="submit" size="large" block loading={loading} icon={<SafetyCertificateOutlined />}>
+                  <Button type="primary" htmlType="submit" size="large" block loading={verifyTransMutation.isPending} icon={<SafetyCertificateOutlined />}>
                     Xác nhận
                   </Button>
                 </Col>

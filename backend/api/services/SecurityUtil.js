@@ -18,13 +18,13 @@ module.exports = {
 
 
   // 2. NHÓM HÀM CHECKSUM VÍ (BẢO VỆ SỐ DƯ)
-  // Tạo mã MD5 bảo vệ số dư ví.
+  // Tạo mã HMAC-SHA-256 bảo vệ số dư ví.
   generatePocketChecksum: function(balance, userId) {
-    const salt = sails.config.custom.pocketSalt;
+    const secret = sails.config.custom.pocketSecret || sails.config.custom.pocketSalt || 'DEFAULT_SECRET';
     const balanceStr = Number(balance).toString();
     const userStr = userId ? String(userId) : 'SYSTEM_WALLET';
     
-    return crypto.createHash('md5').update(`${balanceStr}_${userStr}_${salt}`).digest('hex');
+    return crypto.createHmac('sha256', secret).update(`${balanceStr}_${userStr}`).digest('hex');
   },
 
 

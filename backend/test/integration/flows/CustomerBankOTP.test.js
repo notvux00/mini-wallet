@@ -111,6 +111,41 @@ describe('Customer Bank OTP Flow', function() {
     assert.strictEqual(res.body.message, 'Mã OTP không chính xác hoặc đã hết hạn!');
   });
 
+  it('Should reject and clear OTP after 5 failed attempts', async function() {
+    const app = sails.hooks.http.app;
+    // Set actual OTP
+    await sails.services.redisservice.setnx(`bank_otp:${linkId}`, '123456', 300);
+
+    for (let i = 1; i <= 4; i++) {
+      let res = await request(app)
+        .post('/api/customer/bank/verify-link')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          linkId: linkId,
+          otp: '999999'
+        });
+      assert.strictEqual(res.body.err, 400);
+      assert.strictEqual(res.body.message, 'Mã OTP không chính xác hoặc đã hết hạn!');
+    }
+
+    // 5th attempt
+    let finalRes = await request(app)
+      .post('/api/customer/bank/verify-link')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        linkId: linkId,
+        otp: '999999'
+      });
+    
+    assert.strictEqual(finalRes.body.err, 400);
+    assert.strictEqual(finalRes.body.message, 'Bạn đã nhập sai quá 5 lần. Mã OTP đã bị hủy, vui lòng yêu cầu mã mới.');
+    
+    // verify OTP is cleared
+    const otpKey = `bank_otp:${linkId}`;
+    const savedOtp = await sails.services.redisservice.get(otpKey);
+    assert.strictEqual(savedOtp, null);
+  });
+
   it('Should reject expired OTP (not in Redis)', async function() {
     const app = sails.hooks.http.app;
     // Do NOT set in redis so it acts as expired

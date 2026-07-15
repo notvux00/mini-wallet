@@ -37,6 +37,10 @@ module.exports = {
       type: 'string',
       isIn: ['active', 'inactive'],
       defaultsTo: 'active',
+    },
+    lockOwner: {
+      type: 'string',
+      allowNull: true,
     }
     
   },

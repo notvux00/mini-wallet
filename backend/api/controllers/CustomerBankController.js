@@ -63,17 +63,30 @@ module.exports = {
       const { linkId, otp } = req.body;
       const customerId = req.user.id;
 
-      const otpKey = `bank_otp:${linkId}`;
-      const savedOtp = await RedisService.get(otpKey);
+      // Xác thực ownership trước khi đụng vào OTP
+      const link = await BankLink.findOne({ id: linkId, customer: customerId });
+      if (!link || link.status !== 'pending_otp') {
+        return res.error(respCode.NOT_FOUND, 'Không tìm thấy yêu cầu liên kết hợp lệ!');
+      }
 
-      if (!savedOtp || savedOtp !== otp) {
+      const otpKey = `bank_otp:${linkId}`;
+      const failKey = `bank_otp_fail:${linkId}`;
+      
+      const result = await RedisService.verifyOtpAtomic(otpKey, failKey, otp, 5);
+
+      if (result === 'NOT_FOUND' || result === 'ERROR') {
         return res.error(respCode.BAD_REQUEST, 'Mã OTP không chính xác hoặc đã hết hạn!');
       }
 
-      const link = await BankLink.findOne({ id: linkId, customer: customerId });
-      if (!link) {
-        return res.error(respCode.NOT_FOUND, 'Không tìm thấy yêu cầu liên kết');
+      if (result === 'EXCEEDED') {
+        return res.error(respCode.BAD_REQUEST, 'Bạn đã nhập sai quá 5 lần. Mã OTP đã bị hủy, vui lòng yêu cầu mã mới.');
       }
+
+      if (result === 'MISMATCH') {
+        return res.error(respCode.BAD_REQUEST, 'Mã OTP không chính xác hoặc đã hết hạn!');
+      }
+
+      // result === 'MATCH'
 
       await BankLink.updateOne({ id: linkId }).set({ status: 'linked' });
       return res.ok({}, 'Liên kết thẻ thành công!');

@@ -61,6 +61,14 @@ module.exports = {
     try {
       const { phone, password } = req.body;
 
+      const lockKey = `login_lock:customer:${phone}`;
+      const failKey = `login_fail:customer:${phone}`;
+
+      const isLocked = await RedisService.get(lockKey);
+      if (isLocked) {
+        return res.error(respCode.BAD_REQUEST, 'Tài khoản đang bị khóa tạm thời do nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.');
+      }
+
       // 1. Tìm xem khách có tồn tại không
       const customer = await Customer.findOne({ phone: phone });
       
@@ -68,14 +76,27 @@ module.exports = {
       // thì đều báo chung 1 câu lỗi "INVALID_CREDENTIALS". 
       // Đừng báo "Số điện thoại không tồn tại", Hacker sẽ biết để rà xem số nào có đăng ký ví.
       if (!customer) {
+        const fails = await RedisService.incr(failKey);
+        await RedisService.expire(failKey, 900);
+        if (fails >= 5) {
+          await RedisService.set(lockKey, '1', 900);
+        }
         return res.error(respCode.INVALID_CREDENTIALS, 'Số điện thoại hoặc mật khẩu không đúng!');
       }
 
       // 2. Lôi máy soi bcrypt ra so sánh mật khẩu khách nhập với cái Hash trong DB
       const isMatch = await SecurityUtil.compareText(password, customer.passwordHash);
       if (!isMatch) {
+        const fails = await RedisService.incr(failKey);
+        await RedisService.expire(failKey, 900);
+        if (fails >= 5) {
+          await RedisService.set(lockKey, '1', 900);
+        }
         return res.error(respCode.INVALID_CREDENTIALS, 'Số điện thoại hoặc mật khẩu không đúng!');
       }
+
+      await RedisService.del(failKey);
+      await RedisService.del(lockKey);
 
       // 3. Đúng người rồi! Gói thông tin lại và đóng dấu niêm phong (Ký Token)
       const payload = {

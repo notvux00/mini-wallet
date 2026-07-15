@@ -557,9 +557,9 @@ module.exports = {
     try {
       // --- TASK 3: Khóa tài khoản (Race-condition protection) ---
       if (TRANSBODY.SENDERID) {
-        const lockedPocket = await Pocket.updateOne({ id: TRANSBODY.SENDERID, state: 'active' }).set({ state: 'inProgress' });
+        const lockedPocket = await Pocket.updateOne({ id: TRANSBODY.SENDERID, state: 'active', status: 'active' }).set({ state: 'inProgress', lockOwner: transRefId });
         if (!lockedPocket) {
-          throw new Error('TRX_ERR.ACCOUNT_LOCKED: Tài khoản đang xử lý giao dịch khác, vui lòng thử lại sau.');
+          throw new Error('TRX_ERR.ACCOUNT_LOCKED: Tài khoản đang xử lý giao dịch khác hoặc đang bị khóa, vui lòng thử lại sau.');
         }
         isLocked = true;
       }
@@ -596,7 +596,9 @@ module.exports = {
           if (!debitPocketInfo) {
             throw new Error(`SYS_ERR.POCKET_NOT_FOUND: Không tìm thấy ví Nợ ${debitPocketId}`);
           }
-          if (debitPocketInfo.state !== 'active' && debitPocketInfo.state !== 'inProgress') {
+          if (debitPocketInfo.status === 'inactive' || 
+              (debitPocketInfo.state === 'inProgress' && debitPocketInfo.lockOwner !== transRefId) || 
+              (debitPocketInfo.state !== 'active' && debitPocketInfo.state !== 'inProgress')) {
             throw new Error(`SYS_ERR.POCKET_LOCKED: Ví Nợ đang bị khóa hoặc không hoạt động.`);
           }
 
@@ -609,7 +611,9 @@ module.exports = {
           if (!creditPocketInfo) {
             throw new Error(`SYS_ERR.POCKET_NOT_FOUND: Không tìm thấy ví Có ${creditPocketId}`);
           }
-          if (creditPocketInfo.state !== 'active' && creditPocketInfo.state !== 'inProgress') {
+          if (creditPocketInfo.status === 'inactive' || 
+              (creditPocketInfo.state === 'inProgress' && creditPocketInfo.lockOwner !== transRefId) || 
+              (creditPocketInfo.state !== 'active' && creditPocketInfo.state !== 'inProgress')) {
             throw new Error(`SYS_ERR.POCKET_LOCKED: Ví Có đang bị khóa hoặc không hoạt động.`);
           }
 
@@ -793,7 +797,7 @@ module.exports = {
       await session.endSession();
       // --- TASK 3: Mở khóa tài khoản (Release) ---
       if (isLocked && TRANSBODY.SENDERID) {
-        await Pocket.updateOne({ id: TRANSBODY.SENDERID }).set({ state: 'active' });
+        await Pocket.updateOne({ id: TRANSBODY.SENDERID, lockOwner: transRefId }).set({ state: 'active', lockOwner: null });
       }
       // -------------------------------------------
     }

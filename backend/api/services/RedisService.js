@@ -154,5 +154,66 @@ module.exports = {
   // Dành cho test: reset fake store
   _resetFakeStore: function() {
     fakeRedisStore = {};
+  },
+
+  verifyOtpAtomic: async function (otpKey, failKey, providedOtp, maxFails = 5) {
+    if (checkIsTest()) {
+      const entry = fakeRedisStore[otpKey];
+      if (!entry || (entry.expireAt && Date.now() > entry.expireAt)) {
+        return 'NOT_FOUND';
+      }
+      if (entry.value === providedOtp) {
+        delete fakeRedisStore[otpKey];
+        delete fakeRedisStore[failKey];
+        return 'MATCH';
+      } else {
+        const failEntry = fakeRedisStore[failKey];
+        let fails = 1;
+        if (!failEntry || (failEntry.expireAt && Date.now() > failEntry.expireAt)) {
+          fakeRedisStore[failKey] = { value: 1, expireAt: Date.now() + 300000 };
+        } else {
+          fails = Number(failEntry.value) + 1;
+          fakeRedisStore[failKey] = { value: fails, expireAt: Date.now() + 300000 };
+        }
+        if (fails >= maxFails) {
+          delete fakeRedisStore[otpKey];
+          delete fakeRedisStore[failKey];
+          return 'EXCEEDED';
+        }
+        return 'MISMATCH';
+      }
+    }
+    
+    const client = this.getClient();
+    if (!client) return 'NOT_FOUND';
+
+    const luaScript = `
+      local savedOtp = redis.call('GET', KEYS[1])
+      if not savedOtp then
+        return 'NOT_FOUND'
+      end
+      if savedOtp == ARGV[1] then
+        redis.call('DEL', KEYS[1])
+        redis.call('DEL', KEYS[2])
+        return 'MATCH'
+      else
+        local fails = redis.call('INCR', KEYS[2])
+        redis.call('EXPIRE', KEYS[2], 300)
+        if tonumber(fails) >= tonumber(ARGV[2]) then
+          redis.call('DEL', KEYS[1])
+          redis.call('DEL', KEYS[2])
+          return 'EXCEEDED'
+        end
+        return 'MISMATCH'
+      end
+    `;
+    
+    try {
+      const result = await client.eval(luaScript, 2, otpKey, failKey, providedOtp, maxFails);
+      return result;
+    } catch (e) {
+      sails.log.error('Lỗi chạy Lua script:', e);
+      return 'ERROR';
+    }
   }
 };

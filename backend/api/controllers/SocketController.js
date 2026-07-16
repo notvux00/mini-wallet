@@ -8,7 +8,7 @@ module.exports = {
 
   officerSubscribe: function (req, res) {
     if (!req.isSocket) {
-      return res.badRequest('Only socket requests are allowed');
+      return res.error(sails.services.respcode.BAD_REQUEST, 'Only socket requests are allowed');
     }
     
     // Join the officer room
@@ -19,7 +19,7 @@ module.exports = {
 
   customerSubscribe: async function (req, res) {
     if (!req.isSocket) {
-      return res.badRequest('Only socket requests are allowed');
+      return res.error(sails.services.respcode.BAD_REQUEST, 'Only socket requests are allowed');
     }
     
     const customerId = req.user.id; // From isAuthorized policy

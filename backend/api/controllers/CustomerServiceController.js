@@ -73,7 +73,7 @@ module.exports = {
       return res.ok(result, 'Lấy danh sách dịch vụ thành công!');
     } catch (error) {
       sails.log.error('Lỗi CustomerServiceController.list:', error);
-      return res.badRequest({ message: 'Không thể lấy danh sách dịch vụ.' });
+      return res.error(sails.services.respcode.BAD_REQUEST, 'Không thể lấy danh sách dịch vụ.');
     }
   }
 

@@ -17,7 +17,7 @@ module.exports = {
       return res.ok(result);
     } catch (error) {
       sails.log.error(error);
-      return res.badRequest({ message: error.message });
+      return res.error(sails.services.respcode.BAD_REQUEST, error.message);
     }
   },
 
@@ -38,7 +38,7 @@ module.exports = {
       return res.ok(result);
     } catch (error) {
       sails.log.error(error);
-      return res.badRequest({ message: error.message });
+      return res.error(sails.services.respcode.BAD_REQUEST, error.message);
     }
   },
 
@@ -60,7 +60,7 @@ module.exports = {
       return res.ok(result);
     } catch (error) {
       sails.log.error(error);
-      return res.badRequest({ message: error.message });
+      return res.error(sails.services.respcode.BAD_REQUEST, error.message);
     }
   },
 

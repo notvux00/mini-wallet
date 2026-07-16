@@ -96,7 +96,7 @@ module.exports = {
 
     } catch (error) {
       sails.log.error(error);
-      return res.serverError({ msg: 'Có lỗi xảy ra khi lấy thống kê' });
+      return res.error(sails.services.respcode.SERVER_ERROR, 'Có lỗi xảy ra khi lấy thống kê');
     }
   }
 };

@@ -21,6 +21,7 @@ import CustomerDashboard from './pages/customer/CustomerDashboard';
 import TransferP2P from './pages/customer/TransferP2P';
 import BillPayment from './pages/customer/BillPayment';
 import CustomerHistory from './pages/customer/CustomerHistory';
+import QRPayment from './pages/customer/QRPayment';
 import ComingSoon from './pages/customer/ComingSoon';
 import MobileTopup from './pages/customer/MobileTopup';
 import LinkedBanks from './pages/customer/LinkedBanks';
@@ -64,6 +65,7 @@ function App() {
               <Route path="bill-payment" element={<BillPayment />} />
               <Route path="topup" element={<MobileTopup />} />
               <Route path="history" element={<CustomerHistory />} />
+              <Route path="qr" element={<QRPayment />} />
               <Route path="coming-soon" element={<ComingSoon />} />
             </Route>
           </Routes>

@@ -2,7 +2,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Form, Input, InputNumber, Button, Modal, Steps, Divider, Result, Row, Col, notification, Spin, Select } from 'antd';
 import { MobileOutlined, DollarOutlined, LockOutlined, ArrowRightOutlined, SwapOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SocketContext } from '../../context/SocketContext';
 import { useDashboard } from '../../hooks/useCustomer';
 import { useServices, useRequestTransaction, useConfirmTransaction, useVerifyTransaction } from '../../hooks/useTransaction';
@@ -20,6 +20,7 @@ export default function TransferP2P() {
   
   const { io } = useContext(SocketContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
 
   // Queries & Mutations
@@ -31,6 +32,15 @@ export default function TransferP2P() {
 
   const balance = dashboardData?.balance || 0;
   const isLoading = isLoadingServices || requestMutation.isPending || confirmMutation.isPending || verifyMutation.isPending;
+
+  // Lấy params từ URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const phoneFromUrl = params.get('phone');
+    if (phoneFromUrl) {
+      form.setFieldsValue({ receiverPhone: phoneFromUrl });
+    }
+  }, [location.search, form]);
 
   useEffect(() => {
     if (services.length === 1 && !selectedServiceId) {

@@ -38,7 +38,7 @@ export default function CustomerDashboard() {
     { icon: <SwapOutlined />, label: 'Chuyển tiền', path: '/app/transfer', color: '#0ea5e9', bg: '#e0f2fe' },
     { icon: <FileTextOutlined />, label: 'Hóa đơn', path: '/app/bill-payment', color: '#8b5cf6', bg: '#ede9fe' },
     { icon: <MobileOutlined />, label: 'Nạp ĐT', path: '/app/topup', color: '#10b981', bg: '#d1fae5' },
-    { icon: <QrcodeOutlined />, label: 'Quét QR', path: '/app/coming-soon', color: '#f59e0b', bg: '#fef3c7' },
+    { icon: <QrcodeOutlined />, label: 'Quét QR', path: '/app/qr', color: '#f59e0b', bg: '#fef3c7' },
     { icon: <BankOutlined />, label: 'Ngân hàng', path: '/app/banks', color: '#ec4899', bg: '#fce7f3' },
     { icon: <HistoryOutlined />, label: 'Lịch sử', path: '/app/history', color: '#64748b', bg: '#f1f5f9' },
   ];

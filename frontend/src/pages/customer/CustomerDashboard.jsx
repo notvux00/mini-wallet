@@ -28,34 +28,7 @@ export default function CustomerDashboard() {
 
   const { data: dashboardData, isLoading, isError } = useDashboard();
 
-  useEffect(() => {
-    if (io && io.socket) {
-      const handleTransactionUpdate = (msg) => {
-        notification.info({
-          message: 'Thông báo',
-          description: 'Tài khoản của bạn vừa có biến động số dư!',
-          placement: 'bottomRight',
-        });
-        
-        if (msg?.transaction?.status === 'done') {
-          notification.success({
-            message: 'Giao dịch thành công',
-            description: 'Có cập nhật giao dịch mới.',
-            placement: 'bottomRight',
-          });
-        }
-        
-        // Tự động invalidate cache để fetch lại dashboard ngầm mà không gây giật
-        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
-      };
-      
-      io.socket.on('transaction_updated', handleTransactionUpdate);
-      
-      return () => {
-        io.socket.off('transaction_updated', handleTransactionUpdate);
-      };
-    }
-  }, [io, queryClient]);
+
 
   if (!user) {
     return <Navigate to="/app/login" replace />;

@@ -25,20 +25,7 @@ export default function CustomerHistory() {
     }
   }, [isError, error]);
 
-  useEffect(() => {
-    if (io && io.socket) {
-      const handleTransactionUpdate = (msg) => {
-        if (msg?.transaction?.status === 'done') {
-          notification.success({ message: 'Thành công', description: 'Có giao dịch mới được hoàn tất!' });
-        }
-        queryClient.invalidateQueries({ queryKey: ['customerHistory'] });
-      };
-      io.socket.on('transaction_updated', handleTransactionUpdate);
-      return () => {
-        io.socket.off('transaction_updated', handleTransactionUpdate);
-      };
-    }
-  }, [io, queryClient]);
+
 
   const handleTableChange = (newPagination) => {
     setPagination(newPagination);

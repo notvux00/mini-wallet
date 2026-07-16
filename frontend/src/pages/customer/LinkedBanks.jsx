@@ -53,18 +53,7 @@ export default function LinkedBanks() {
 
   // const isLoading = isLoadingLinkedBanks || isLoadingServices || requestLinkMutation.isPending || verifyLinkMutation.isPending || unlinkMutation.isPending || requestTransMutation.isPending || confirmTransMutation.isPending || verifyTransMutation.isPending;
 
-  useEffect(() => {
-    if (io && io.socket) {
-      const handleTransactionUpdate = () => {
-        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['linkedBanks'] });
-      };
-      io.socket.on('transaction_updated', handleTransactionUpdate);
-      return () => {
-        io.socket.off('transaction_updated', handleTransactionUpdate);
-      };
-    }
-  }, [io, queryClient]);
+
 
   // --- BANK LINKING METHODS ---
   const handleRequestLink = async (values) => {

@@ -38,17 +38,6 @@ export default function TransferP2P() {
     }
   }, [services, selectedServiceId]);
 
-  useEffect(() => {
-    if (io && io.socket) {
-      const handleTransactionUpdate = () => {
-        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
-      };
-      io.socket.on('transaction_updated', handleTransactionUpdate);
-      return () => {
-        io.socket.off('transaction_updated', handleTransactionUpdate);
-      };
-    }
-  }, [io, queryClient]);
 
   const handleRequest = async (values) => {
     if (!selectedServiceId) {

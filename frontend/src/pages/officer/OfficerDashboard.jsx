@@ -21,21 +21,7 @@ export default function OfficerDashboard() {
   
   const { data: stats, isLoading, refetch } = useDashboardStats();
 
-  useEffect(() => {
-    if (io && io.socket) {
-      console.log('Registering socket listener in Officer Dashboard');
-      io.socket.on('transaction_updated', (msg) => {
-        console.log('Socket event received!', msg);
-        refetch();
-      });
-    }
-    // Cleanup is handled by SocketContext when unmounting/disconnecting
-    return () => {
-      if (io && io.socket) {
-        io.socket.off('transaction_updated');
-      }
-    }
-  }, [io, refetch]);
+
 
   if (isLoading) {
     return <div style={{ textAlign: 'center', padding: '100px 0' }}><Spin size="large" /></div>;

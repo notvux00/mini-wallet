@@ -845,14 +845,20 @@ module.exports = {
     
     // --- TASK 5: Realtime Socket Emit ---
     try {
+      const payload = { 
+        transactionId: createdTransactionId, 
+        transRefId,
+        transaction: { status: 'done' }
+      };
+      
       if (TRANSBODY.SENDERID) {
-        sails.sockets.broadcast(`pocket_room_${TRANSBODY.SENDERID}`, 'transaction_updated', { transactionId: createdTransactionId, transRefId });
+        sails.sockets.broadcast(`pocket_room_${TRANSBODY.SENDERID}`, 'transaction_updated', payload);
       }
       if (TRANSBODY.RECEIVERID) {
-        sails.sockets.broadcast(`pocket_room_${TRANSBODY.RECEIVERID}`, 'transaction_updated', { transactionId: createdTransactionId, transRefId });
+        sails.sockets.broadcast(`pocket_room_${TRANSBODY.RECEIVERID}`, 'transaction_updated', payload);
       }
       // Báo cho Officer room
-      sails.sockets.broadcast('officer_room', 'transaction_updated', { transactionId: createdTransactionId, transRefId });
+      sails.sockets.broadcast('officer_room', 'transaction_updated', payload);
     } catch (err) {
       sails.log.error('Lỗi broadcast socket realtime:', err);
     }

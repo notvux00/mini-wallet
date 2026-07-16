@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react';
-import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
+import { useState, useContext, useEffect } from 'react';
+import { Layout, Menu, Typography, Avatar, Space, Dropdown, notification } from 'antd';
 import { 
   HomeOutlined, 
   SwapOutlined, 
@@ -12,6 +12,8 @@ import {
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { SocketContext } from '../context/SocketContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -21,8 +23,34 @@ export default function CustomerLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
+  const { io } = useContext(SocketContext);
+  const queryClient = useQueryClient();
 
   const isAuthPage = location.pathname === '/app/login' || location.pathname === '/app/register';
+
+  useEffect(() => {
+    if (io && io.socket && !isAuthPage) {
+      const handleTransactionUpdate = (msg) => {
+        if (msg?.transaction?.status === 'done') {
+          notification.success({
+            message: 'Giao dịch thành công',
+            description: 'Tài khoản của bạn vừa có biến động số dư!',
+            placement: 'bottomRight',
+          });
+        }
+        
+        // Tự động invalidate cache toàn cục
+        queryClient.invalidateQueries({ queryKey: ['customerDashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['customerHistory'] });
+      };
+      
+      io.socket.on('transaction_updated', handleTransactionUpdate);
+      
+      return () => {
+        io.socket.off('transaction_updated', handleTransactionUpdate);
+      };
+    }
+  }, [io, queryClient, isAuthPage]);
 
   const menuItems = [
     { key: '/app/home', icon: <HomeOutlined />, label: 'Trang chủ' },

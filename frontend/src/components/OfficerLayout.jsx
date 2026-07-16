@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react';
-import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
+import { useState, useContext, useEffect } from 'react';
+import { Layout, Menu, Typography, Avatar, Space, Dropdown, notification } from 'antd';
 import { 
   AppstoreOutlined, 
   WalletOutlined, 
@@ -17,6 +17,8 @@ import {
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { SocketContext } from '../context/SocketContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -26,8 +28,26 @@ export default function OfficerLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
+  const { io } = useContext(SocketContext);
+  const queryClient = useQueryClient();
 
   const isLoginPage = location.pathname === '/officer/login';
+
+  useEffect(() => {
+    if (io && io.socket && !isLoginPage) {
+      const handleTransactionUpdate = (msg) => {
+        // Tự động invalidate cache toàn cục của Officer
+        queryClient.invalidateQueries({ queryKey: ['officerDashboardStats'] });
+        queryClient.invalidateQueries({ queryKey: ['officerHistory'] });
+      };
+      
+      io.socket.on('transaction_updated', handleTransactionUpdate);
+      
+      return () => {
+        io.socket.off('transaction_updated', handleTransactionUpdate);
+      };
+    }
+  }, [io, queryClient, isLoginPage]);
 
   const menuItems = [
     { key: '/officer/dashboard', icon: <DashboardOutlined />, label: 'Tổng quan' },

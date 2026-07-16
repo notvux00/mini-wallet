@@ -595,7 +595,7 @@ module.exports = {
           await db.collection('transvalidation').deleteMany({ service: id }, { session });
           await db.collection('transdefinition').deleteMany({ service: id }, { session });
 
-          // Cập nhật bảng Service (giữ nguyên status = inactive)
+          // Cập nhật bảng Service (giữ nguyên status = inactive, tăng version)
           await db.collection('service').updateOne(
             { _id: new ObjectId(id) },
             {
@@ -611,7 +611,8 @@ module.exports = {
                 },
                 fieldBuilder: fieldBuilder,
                 updatedAt: Date.now(),
-              }
+              },
+              $inc: { version: 1 }
             },
             { session }
           );
@@ -647,9 +648,8 @@ module.exports = {
         await session.endSession();
       }
 
-      // Xoá cache Services để Customer tải lại
+      // Vẫn cần xoá cache Services List cho Frontend
       await RedisService.del('CACHE:CUSTOMER:SERVICES');
-      await RedisService.del('CACHE:ENGINE:SERVICE_CONFIG:' + id);
 
       return res.ok(null, 'Cập nhật cấu hình Dịch vụ thành công!');
     } catch (error) {
@@ -668,16 +668,16 @@ module.exports = {
       if (!service) return res.error('NOT_FOUND', 'Dịch vụ không tồn tại.');
 
       const newStatus = service.status === 'active' ? 'inactive' : 'active';
+      const currentVersion = service.version || 1;
 
-      await Service.updateOne({ id }).set({ status: newStatus, updatedAt: Date.now() });
+      await Service.updateOne({ id }).set({ status: newStatus, version: currentVersion + 1, updatedAt: Date.now() });
+
+      // Xoá cache Services để Customer tải lại
+      await RedisService.del('CACHE:CUSTOMER:SERVICES');
 
       const message = newStatus === 'inactive'
         ? 'Dịch vụ đã được tạm ngưng. Bạn có thể chỉnh sửa cấu hình.'
         : 'Dịch vụ đã được kích hoạt trở lại.';
-
-      // Xoá cache Services để Customer tải lại
-      await RedisService.del('CACHE:CUSTOMER:SERVICES');
-      await RedisService.del('CACHE:ENGINE:SERVICE_CONFIG:' + id);
 
       return res.ok({ id, status: newStatus }, message);
     } catch (error) {

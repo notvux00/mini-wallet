@@ -40,6 +40,10 @@ module.exports = {
     descriptionField: {
       type: 'string',
       defaultsTo: 'DESCRIPTION',
+    },
+    version: {
+      type: 'number',
+      defaultsTo: 1,
     }
 
   },

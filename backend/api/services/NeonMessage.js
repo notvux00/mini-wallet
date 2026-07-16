@@ -963,10 +963,15 @@ module.exports = {
    * Lấy cấu hình Engine từ Cache (hoặc DB nếu Cache Miss)
    */
   getEngineConfig: async function (serviceId) {
-    const cacheKey = `CACHE:ENGINE:SERVICE_CONFIG:${serviceId}`;
+    // Luôn luôn phải Query Service trước để lấy Version
+    const service = await Service.findOne({ id: serviceId });
+    if (!service) return null; // Dịch vụ không tồn tại
+
+    const version = service.version || 1;
+    const cacheKey = `CACHE:ENGINE:SERVICE_CONFIG:${serviceId}_v${version}`;
     let config = null;
     
-    // Thử lấy từ Cache trước
+    // Thử lấy cấu hình đầy đủ từ Cache dựa trên Version
     const cachedStr = await RedisService.get(cacheKey);
     if (cachedStr) {
       try {
@@ -978,9 +983,6 @@ module.exports = {
     
     // Nếu Cache Miss
     if (!config) {
-      const service = await Service.findOne({ id: serviceId });
-      if (!service) return null; // Dịch vụ không tồn tại
-      
       const transFields = await TransField.find({ service: serviceId }).sort('order ASC');
       const transDef = await TransDefinition.findOne({ service: serviceId });
       const validations = await TransValidation.find({ service: serviceId }).sort('order ASC');
@@ -992,8 +994,8 @@ module.exports = {
         validations
       };
       
-      // Lưu lại vào Cache trong 1 giờ
-      await RedisService.set(cacheKey, JSON.stringify(config), 3600);
+      // Lưu lại vào Cache trong 24 giờ (Vì có versioning nên có thể cache dài hạn)
+      await RedisService.set(cacheKey, JSON.stringify(config), 86400);
     }
     
     return config;

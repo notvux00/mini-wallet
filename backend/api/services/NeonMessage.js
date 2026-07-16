@@ -643,6 +643,12 @@ module.exports = {
             throw new Error(`SYS_ERR.POCKET_LOCKED: Ví Nợ đang bị khóa hoặc không hoạt động.`);
           }
 
+          // Kiểm tra Data Integrity cho Ví Nợ
+          const expectedDebitChecksum = SecurityUtil.generatePocketChecksum(debitPocketInfo.balance, debitPocketInfo.user);
+          if (expectedDebitChecksum !== debitPocketInfo.checksum) {
+            throw new Error(`TRX_ERR.DATA_INTEGRITY: Số dư ví Nợ bị sai lệch Checksum (Possible Tampering)`);
+          }
+
           const creditObjectId = new (require('mongodb').ObjectId)(creditPocketId);
           const creditPocketInfo = await pocketCollection.findOne(
             { _id: { $in: [creditPocketId, creditObjectId] } },
@@ -656,6 +662,12 @@ module.exports = {
               (creditPocketInfo.state === 'inProgress' && creditPocketInfo.lockOwner !== transRefId) || 
               (creditPocketInfo.state !== 'active' && creditPocketInfo.state !== 'inProgress')) {
             throw new Error(`SYS_ERR.POCKET_LOCKED: Ví Có đang bị khóa hoặc không hoạt động.`);
+          }
+
+          // Kiểm tra Data Integrity cho Ví Có
+          const expectedCreditChecksum = SecurityUtil.generatePocketChecksum(creditPocketInfo.balance, creditPocketInfo.user);
+          if (expectedCreditChecksum !== creditPocketInfo.checksum) {
+            throw new Error(`TRX_ERR.DATA_INTEGRITY: Số dư ví Có bị sai lệch Checksum (Possible Tampering)`);
           }
 
           const allowNegative = ['system', 'bank'].includes(debitPocketInfo.client);

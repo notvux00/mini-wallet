@@ -32,7 +32,7 @@ before(function (done) {
         name: 'Ví thu tiền phí',
         currency: 'VND',
         balance: 0,
-        checksum: 'fake_checksum_sys_fee',
+        checksum: sails.services.securityutil.generatePocketChecksum(0, 'system_admin'),
         status: 'active'
       }).fetch();
 
@@ -43,7 +43,7 @@ before(function (done) {
         name: 'Két tiền mặt quầy (OTC)',
         currency: 'VND',
         balance: 0,
-        checksum: 'fake_checksum_otc',
+        checksum: sails.services.securityutil.generatePocketChecksum(0, 'otc_admin'),
         status: 'active'
       }).fetch();
 
@@ -54,7 +54,7 @@ before(function (done) {
         name: 'Ví Ngân Hàng VCB',
         currency: 'VND',
         balance: 1000000000,
-        checksum: 'fake_checksum_vcb',
+        checksum: sails.services.securityutil.generatePocketChecksum(1000000000, 'vcb_admin'),
         status: 'active'
       }).fetch();
 
@@ -64,7 +64,7 @@ before(function (done) {
         name: 'Ví SENDER',
         currency: 'VND',
         balance: 50000,
-        checksum: 'fake_checksum_sender',
+        checksum: sails.services.securityutil.generatePocketChecksum(50000, 'test_user_1'),
         status: 'active'
       }).fetch();
 
@@ -74,7 +74,7 @@ before(function (done) {
         name: 'Ví RECEIVER',
         currency: 'VND',
         balance: 0,
-        checksum: 'fake_checksum_receiver',
+        checksum: sails.services.securityutil.generatePocketChecksum(0, 'test_user_2'),
         status: 'active'
       }).fetch();
 

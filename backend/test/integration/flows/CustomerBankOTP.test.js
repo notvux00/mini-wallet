@@ -16,7 +16,7 @@ describe('Customer Bank OTP Flow', function() {
       name: 'Ví Khách Hàng',
       currency: 'VND',
       balance: 0,
-      checksum: 'dummy',
+      checksum: sails.services.securityutil.generatePocketChecksum(0, 'temp'),
       status: 'active'
     }).fetch();
 

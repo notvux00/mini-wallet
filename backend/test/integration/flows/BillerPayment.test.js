@@ -11,7 +11,7 @@ describe('Biller Payment Flow', function() {
       name: 'Ví Biller Viettel',
       currency: 'VND',
       balance: 0,
-      checksum: 'fake_checksum_biller',
+      checksum: sails.services.securityutil.generatePocketChecksum(0, 'viettel_admin'),
       status: 'active'
     }).fetch();
 

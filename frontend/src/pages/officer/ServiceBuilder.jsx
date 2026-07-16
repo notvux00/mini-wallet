@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Checkbox, Space, Typography, Popconfirm, notification, Row, Col, Collapse } from 'antd';
-import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, MobileOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined, UnorderedListOutlined } from '@ant-design/icons';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect } from 'react';
+import { Steps, Form, Input, InputNumber, Button, Select, Card, Switch, Space, Typography, Popconfirm, notification, Row, Col, Collapse } from 'antd';
+import { PlusOutlined, DeleteOutlined, ArrowRightOutlined, SettingOutlined, SafetyCertificateOutlined, AccountBookOutlined, WalletOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePockets, useServiceDetail, useCreateService, useUpdateService } from '../../hooks/useOfficer';
 
@@ -279,7 +280,7 @@ export default function ServiceBuilder() {
           <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
             Khai báo cấu trúc dữ liệu (payload) mà Frontend / Client bắt buộc phải gửi lên Engine khi thực hiện giao dịch này.
           </Text>
-          {inputFields.map((field, index) => (
+          {inputFields.map((field) => (
             <Card key={field.id} size="small" style={{ marginBottom: 12, background: '#f8fafc', borderColor: '#e2e8f0' }}>
               <Row gutter={16} align="middle">
                 <Col span={8}>
@@ -614,7 +615,7 @@ export default function ServiceBuilder() {
             Sử dụng các biến số ở Bước 2 để định nghĩa các bước di chuyển của dòng tiền (Kế toán ghi sổ kép).
           </Text>
           
-          {glSteps.map((step, index) => (
+          {glSteps.map((step) => (
             <Card key={step.id} style={{ marginBottom: 16, borderColor: '#cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                 <Input 

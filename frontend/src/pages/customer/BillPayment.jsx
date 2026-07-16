@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+ 
+import { useState, useEffect } from 'react';
 import { Card, Typography, Form, Input, Button, Modal, Steps, Divider, Result, Select, Spin, Alert, Row, notification } from 'antd';
-import { LockOutlined, ThunderboltOutlined, WifiOutlined } from '@ant-design/icons';
+import { LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useServices, useBillers, useRequestTransaction, useConfirmTransaction, useVerifyTransaction } from '../../hooks/useTransaction';
 

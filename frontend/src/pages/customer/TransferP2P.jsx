@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Form, Input, InputNumber, Button, Modal, Steps, Divider, Result, Row, Col, notification, Spin, Select } from 'antd';
 import { MobileOutlined, DollarOutlined, LockOutlined, ArrowRightOutlined, SwapOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';

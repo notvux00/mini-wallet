@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Typography, Tag, Space, Alert, message, Statistic, Row, Col } from 'antd';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect } from 'react';
+import { Table, Button, Card, Typography, Tag, message, Statistic, Row, Col } from 'antd';
 import { CheckCircleOutlined, ExclamationCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import axios from '../../utils/axios';
 
@@ -19,7 +20,7 @@ export default function Reconciliation() {
       } else {
         message.error(res.data.msg);
       }
-    } catch (err) {
+    } catch {
       message.error('Lỗi khi tải lịch sử đối soát');
     } finally {
       setLoading(false);
@@ -40,7 +41,7 @@ export default function Reconciliation() {
       } else {
         message.error(res.data.msg);
       }
-    } catch (err) {
+    } catch {
       message.error('Lỗi khi chạy đối soát');
     } finally {
       setRunning(false);

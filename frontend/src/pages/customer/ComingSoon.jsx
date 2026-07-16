@@ -1,6 +1,5 @@
-import React from 'react';
 import { Result, Button, Typography, Card } from 'antd';
-import { SmileOutlined, ToolOutlined } from '@ant-design/icons';
+import { ToolOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;

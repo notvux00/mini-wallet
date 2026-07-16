@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
+ 
+import { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Table, Tag, Button, Modal, Tabs, Timeline, Select, Input, Space } from 'antd';
 import { useTrails } from '../../hooks/useOfficer';
 import { FileTextOutlined, EyeOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 import { SocketContext } from '../../context/SocketContext';
 const { TabPane } = Tabs;
 

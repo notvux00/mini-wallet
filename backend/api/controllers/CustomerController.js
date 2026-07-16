@@ -82,6 +82,10 @@ module.exports = {
                             displayName = 'System';
                         } else if (otherPocket.client === 'biller') {
                             displayName = 'Biller';
+                            if (otherPocket.user) {
+                                const biller = await Biller.findOne({ id: otherPocket.user });
+                                if (biller) displayName = biller.name;
+                            }
                         }
                     }
                 }
@@ -89,7 +93,7 @@ module.exports = {
                 return {
                     id: tx.id,
                     transRefId: tx.transRefId,
-                    createAt: tx.createdAt,
+                    createdAt: tx.createdAt,
                     // Loại giao dịch
                     type: isIncome ? 'income' : 'expense',
 
@@ -99,7 +103,7 @@ module.exports = {
                     // Trả luôn cả tiêu đề gợi ý để Frontend đỡ phải if-else
                     displayTitle: isIncome ? `Received from ${displayName}` : `Transfer to ${displayName}`,
 
-                    serviceId: tx.serviceId // Ví dụ: 'P2P TRANSFER'
+                    serviceId: tx.serviceId === otherPocketId || tx.serviceId.length === 24 ? displayName : tx.serviceId // Nếu serviceId là ID của Biller, thì hiển thị tên
                 }
             }));
 

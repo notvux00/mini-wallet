@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
+ 
+import { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Table, Tag, Input, Space } from 'antd';
 import { usePocketEntries } from '../../hooks/useOfficer';
 import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 import { SocketContext } from '../../context/SocketContext';
 
 export default function PocketEntryHistory() {

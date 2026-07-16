@@ -1,4 +1,6 @@
-import React, { createContext, useState, useEffect } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { createContext, useState, useEffect, useCallback } from 'react';
+/* eslint-disable react-refresh/only-export-components */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import authService from '../services/authService';
 
@@ -18,12 +20,19 @@ export const AuthProvider = ({ children }) => {
     retry: false,
   });
 
+  const logout = useCallback(() => {
+    localStorage.removeItem('MINI_WALLET_TOKEN');
+    localStorage.removeItem('MINI_WALLET_ROLE');
+    queryClient.removeQueries({ queryKey: ['authMe'] });
+    setAuth({ token: null, role: null });
+  }, [queryClient]);
+
   useEffect(() => {
     // Nếu token hết hạn hoặc fetch lỗi thì tự động logout
     if (isError) {
       logout();
     }
-  }, [isError]);
+  }, [isError, logout]);
 
   const login = (userData, token) => {
     localStorage.setItem('MINI_WALLET_TOKEN', token);
@@ -33,13 +42,6 @@ export const AuthProvider = ({ children }) => {
     queryClient.setQueryData(['authMe', userData.role, token], userData);
     
     setAuth({ token, role: userData.role });
-  };
-
-  const logout = () => {
-    localStorage.removeItem('MINI_WALLET_TOKEN');
-    localStorage.removeItem('MINI_WALLET_ROLE');
-    queryClient.removeQueries({ queryKey: ['authMe'] });
-    setAuth({ token: null, role: null });
   };
 
   // Trạng thái loading toàn cục: Đang có token nhưng chưa load xong data

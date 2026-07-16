@@ -20,7 +20,7 @@
     "react-router-dom": "^7.18.0",
     "recharts": "^3.9.2",
     "sails.io.js": "^1.2.1",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^2.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

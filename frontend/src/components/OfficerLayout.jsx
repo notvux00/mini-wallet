@@ -1,18 +1,14 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
 import { 
   AppstoreOutlined, 
-  SettingOutlined, 
   WalletOutlined, 
   BankOutlined, 
   UserOutlined,
-  HistoryOutlined,
   FileDoneOutlined,
   LogoutOutlined,
-  UserSwitchOutlined,
   WalletFilled,
   DashboardOutlined,
-  DollarOutlined,
   SwapOutlined,
   ShopOutlined,
   TeamOutlined,

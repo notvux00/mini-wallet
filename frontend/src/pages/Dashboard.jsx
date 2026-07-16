@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Typography, Card, Avatar, Button, Row, Col, Statistic } from 'antd';
 import { UserOutlined, WalletOutlined, LogoutOutlined } from '@ant-design/icons';
 import { AuthContext } from '../context/AuthContext';

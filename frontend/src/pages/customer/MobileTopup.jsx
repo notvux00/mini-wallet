@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+ 
+import { useState, useEffect } from 'react';
 import { Card, Typography, Form, Input, Button, Modal, Steps, Divider, Result, Select, Spin, Row, Col, notification, Alert } from 'antd';
 import { MobileOutlined, LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';

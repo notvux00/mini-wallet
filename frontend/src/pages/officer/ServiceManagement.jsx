@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, Typography, Table, Tag, Space, Button, Modal, Form, Input, Popconfirm, notification } from 'antd';
 import { PlusOutlined, SettingOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';

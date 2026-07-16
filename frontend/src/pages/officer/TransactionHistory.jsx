@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
+ 
+import { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Table, Tag, Input, Space } from 'antd';
 import { useTransactions } from '../../hooks/useOfficer';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 import { SocketContext } from '../../context/SocketContext';
 
 export default function TransactionHistory() {

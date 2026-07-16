@@ -6,7 +6,7 @@ module.exports.bootstrap = async function() {
   const sysPocketCount = await Pocket.count({ client: 'system' });
   if (sysPocketCount === 0) {
     const checksum = SecurityUtil.generatePocketChecksum(0, 'SYS_FEE');
-    await Pocket.create({ id: 'SYS_FEE', user: 'SYS_FEE', client: 'system', balance: 0, checksum });
+    await Pocket.create({ user: 'SYS_FEE', client: 'system', name: 'System Fee', currency: 'VND', balance: 0, checksum, status: 'active' });
   }
 
   // Setup cronjob cho Đối soát tự động (Chạy vào 23:59:59 hàng ngày)

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+
+import { useState, useEffect, useContext } from 'react';
 import { Card, Typography, Table, Tag, notification } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { SocketContext } from '../../context/SocketContext';
 import { useHistory } from '../../hooks/useCustomer';
 import { useQueryClient } from '@tanstack/react-query';

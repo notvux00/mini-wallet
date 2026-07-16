@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useContext } from 'react';
 import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd';
 import { 
   HomeOutlined, 
@@ -10,7 +10,7 @@ import {
   HistoryOutlined,
   MobileOutlined
 } from '@ant-design/icons';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const { Header, Sider, Content } = Layout;
@@ -20,7 +20,7 @@ export default function CustomerLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = React.useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
 
   const isAuthPage = location.pathname === '/app/login' || location.pathname === '/app/register';
 
@@ -44,6 +44,10 @@ export default function CustomerLayout() {
     if (phone.length < 7) return phone;
     return phone.slice(0, 3) + '****' + phone.slice(-3);
   };
+
+  if (!user && !isAuthPage) {
+    return <Navigate to="/app/login" replace />;
+  }
 
   if (isAuthPage) {
     return (

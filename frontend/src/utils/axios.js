@@ -42,7 +42,11 @@ axiosInstance.interceptors.response.use(
     // Nếu bị lỗi 401 (Hết hạn Token), tự động đá về trang Login
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('MINI_WALLET_TOKEN');
-      window.location.href = '/login';
+      if (window.location.pathname.startsWith('/officer')) {
+        window.location.href = '/officer/login';
+      } else {
+        window.location.href = '/app/login';
+      }
     }
     return Promise.reject(error);
   }

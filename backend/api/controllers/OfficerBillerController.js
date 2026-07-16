@@ -136,6 +136,9 @@ module.exports = {
             checksum: validChecksum,
         });
 
+        // Xoá cache Biller để Customer tải lại
+        await RedisService.del('CACHE:CUSTOMER:BILLERS');
+
         return res.ok(newBiller, 'Tạo Biller thành công!');
     } catch (error) {
         sails.log.error('Lỗi OfficerBillerController.create:', error);
@@ -156,14 +159,17 @@ module.exports = {
         const newStatus = biller.status === 'active' ? 'inactive' : 'active';
 
         // 1. Cập nhật trạng thái biller
-        await Biller.updateOne({ id: id }).set({ status: newStatus });
+        const updatedBiller = await Biller.updateOne({ id: id }).set({ status: newStatus });
 
         // 2. Cập nhật luôn trạng thái của Pocket đi theo Biller đó
         if (biller.pocket) {
             await Pocket.updateOne({ id: biller.pocket }).set({ status: newStatus });
         }
 
-        return res.ok({ status: newStatus }, `Đã đổi trạng thái thành ${newStatus.toUpperCase()}`);
+        // Xoá cache Biller để Customer tải lại
+        await RedisService.del('CACHE:CUSTOMER:BILLERS');
+
+        return res.ok(updatedBiller, `Đã ${newStatus === 'active' ? 'mở khóa' : 'khóa'} Biller thành công!`);
     } catch (error) {
         sails.log.error('Lỗi OfficerBillerController.toggleStatus:', error);
         return res.error(respCode.SERVER_ERROR, 'Hệ thống đang bận.');
@@ -195,6 +201,9 @@ module.exports = {
             inqReqKeyCustomer, inqReqKeyBiller, inquiryResMappingAmount, inquiryResMappingBillRef,
             payReqKeyCustomer, payReqKeyAmount, payReqKeyBillRef, payResMappingStatus, payResMappingSuccessValue
         });
+
+        // Xoá cache Biller để Customer tải lại
+        await RedisService.del('CACHE:CUSTOMER:BILLERS');
 
         return res.ok(updatedBiller, 'Cập nhật Biller thành công!');
     } catch (error) {

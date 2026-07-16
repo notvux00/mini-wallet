@@ -65,9 +65,12 @@ module.exports = {
     }
     // ------------------------------------------------
 
-    // 1. Fetch Service & kiểm tra trạng thái
-    const service = await Service.findOne({ id: serviceId });
-    if (!service) throw new Error('SVC_ERR.SERVICE_NOT_FOUND: Dịch vụ không tồn tại.');
+    // 1. Lấy cấu hình Engine từ Cache (hoặc DB)
+    const engineConfig = await this.getEngineConfig(serviceId);
+    if (!engineConfig) throw new Error('SVC_ERR.SERVICE_NOT_FOUND: Dịch vụ không tồn tại.');
+    
+    const { service, transFields, transDef, validations } = engineConfig;
+    
     if (service.status !== 'active') throw new Error('SVC_ERR.SERVICE_INACTIVE: Dịch vụ đang tạm ngưng.');
 
     // 2. Chuẩn bị TRANSBODY
@@ -219,7 +222,6 @@ module.exports = {
     }
 
     // 4. Validate Required fields dựa trên TransField
-    const transFields = await TransField.find({ service: serviceId }).sort('order ASC');
     for (const tf of transFields) {
       if (tf.isRequired && (TRANSBODY[tf.fieldName] === undefined || TRANSBODY[tf.fieldName] === null || TRANSBODY[tf.fieldName] === '')) {
         throw new Error(`${tf.errorCode}: ${tf.errorMessage}`);
@@ -246,7 +248,6 @@ module.exports = {
 
     // 5. Tính phí động dựa trên cấu hình service (Normalize Amount first)
     let amountField = 'AMOUNT';
-    const transDef = await TransDefinition.findOne({ service: serviceId });
     if (transDef && transDef.glSteps && transDef.glSteps.length > 0) {
       amountField = transDef.glSteps[0].amount; // lấy trường số tiền từ bút toán kế toán đầu tiên
     } else {
@@ -293,7 +294,6 @@ module.exports = {
     TRANSBODY.DISCOUNT = calculatedDiscount;
     TRANSBODY.TOTALAMOUNT = amountValue + calculatedFee - calculatedDiscount;
     // 6. Xử lý TransValidation (Ví dụ: validateReceiverIsNotSender, validateMinAmount)
-    const validations = await TransValidation.find({ service: serviceId }).sort('order ASC');
     
     // Đánh giá DB-related validations
     for (const val of validations) {
@@ -388,7 +388,9 @@ module.exports = {
     if (!trail) throw new Error('TRX_ERR.NOT_FOUND: Giao dịch không tồn tại hoặc không có quyền truy cập.');
     if (trail.status !== 'pending') throw new Error('TRX_ERR.INVALID_STATUS: Giao dịch không ở trạng thái chờ xác nhận.');
 
-    const service = await Service.findOne({ id: trail.serviceId });
+    const engineConfig = await this.getEngineConfig(trail.serviceId);
+    if (!engineConfig) throw new Error('SVC_ERR.SERVICE_NOT_FOUND: Dịch vụ không tồn tại.');
+    const { service } = engineConfig;
     
     // Nếu là Officer làm Cash-in, auth mặc định NONE. Nếu khách hàng, dùng auth của service
     const authMethod = (clientType === 'officer') ? 'NONE' : (service.authMethod || 'PIN');
@@ -434,7 +436,9 @@ module.exports = {
     if (!trail) throw new Error('TRX_ERR.NOT_FOUND: Giao dịch không tồn tại.');
     if (trail.status !== 'pending') throw new Error('TRX_ERR.INVALID_STATUS: Giao dịch đã được xử lý.');
 
-    const service = await Service.findOne({ id: trail.serviceId });
+    const engineConfig = await this.getEngineConfig(trail.serviceId);
+    if (!engineConfig) throw new Error('SVC_ERR.SERVICE_NOT_FOUND: Dịch vụ không tồn tại.');
+    const { service } = engineConfig;
     const TRANSBODY = trail.inputMessage;
 
     // 1. Verify PIN (nếu authMethod === 'PIN')
@@ -488,15 +492,14 @@ module.exports = {
       }
     }
 
-    // 2. Nạp TransDefinition (glSteps)
-    const transDef = await TransDefinition.findOne({ service: service.id, status: 'active' });
+    // 2. Nạp cấu hình từ Engine (Cache)
+    const { transFields, transDef, validations } = engineConfig;
     if (!transDef || !transDef.glSteps || transDef.glSteps.length === 0) {
       throw new Error('SYS_ERR.NO_GL_STEPS: Dịch vụ chưa cấu hình bút toán kế toán.');
     }
 
     // --- TASK 4: Re-validation & Fee Re-calculation ---
     // Validate Required fields
-    const transFields = await TransField.find({ service: service.id }).sort('order ASC');
     for (const tf of transFields) {
       if (tf.isRequired && (TRANSBODY[tf.fieldName] === undefined || TRANSBODY[tf.fieldName] === null || TRANSBODY[tf.fieldName] === '')) {
         throw new Error(`${tf.errorCode}: ${tf.errorMessage}`);
@@ -522,7 +525,6 @@ module.exports = {
     }
     
     // Validate TransValidation
-    const validations = await TransValidation.find({ service: service.id }).sort('order ASC');
     for (const val of validations) {
       if (val.validateFunc === 'validateReceiverIsNotSender') {
         if (TRANSBODY.SENDERID && TRANSBODY.RECEIVERID && TRANSBODY.SENDERID === TRANSBODY.RECEIVERID) {
@@ -840,6 +842,20 @@ module.exports = {
       }
       // -------------------------------------------
     }
+    
+    // --- TASK 5: Realtime Socket Emit ---
+    try {
+      if (TRANSBODY.SENDERID) {
+        sails.sockets.broadcast(`pocket_room_${TRANSBODY.SENDERID}`, 'transaction_updated', { transactionId: createdTransactionId, transRefId });
+      }
+      if (TRANSBODY.RECEIVERID) {
+        sails.sockets.broadcast(`pocket_room_${TRANSBODY.RECEIVERID}`, 'transaction_updated', { transactionId: createdTransactionId, transRefId });
+      }
+      // Báo cho Officer room
+      sails.sockets.broadcast('officer_room', 'transaction_updated', { transactionId: createdTransactionId, transRefId });
+    } catch (err) {
+      sails.log.error('Lỗi broadcast socket realtime:', err);
+    }
 
     return {
       transRefId: transRefId,
@@ -941,5 +957,45 @@ module.exports = {
     } finally {
       session.endSession();
     }
+  },
+
+  /**
+   * Lấy cấu hình Engine từ Cache (hoặc DB nếu Cache Miss)
+   */
+  getEngineConfig: async function (serviceId) {
+    const cacheKey = `CACHE:ENGINE:SERVICE_CONFIG:${serviceId}`;
+    let config = null;
+    
+    // Thử lấy từ Cache trước
+    const cachedStr = await RedisService.get(cacheKey);
+    if (cachedStr) {
+      try {
+        config = JSON.parse(cachedStr);
+      } catch (e) {
+        sails.log.warn(`Lỗi parse JSON cache Engine Config cho service ${serviceId}, sẽ fetch lại từ DB.`);
+      }
+    }
+    
+    // Nếu Cache Miss
+    if (!config) {
+      const service = await Service.findOne({ id: serviceId });
+      if (!service) return null; // Dịch vụ không tồn tại
+      
+      const transFields = await TransField.find({ service: serviceId }).sort('order ASC');
+      const transDef = await TransDefinition.findOne({ service: serviceId });
+      const validations = await TransValidation.find({ service: serviceId }).sort('order ASC');
+      
+      config = {
+        service,
+        transFields,
+        transDef,
+        validations
+      };
+      
+      // Lưu lại vào Cache trong 1 giờ
+      await RedisService.set(cacheKey, JSON.stringify(config), 3600);
+    }
+    
+    return config;
   }
 };

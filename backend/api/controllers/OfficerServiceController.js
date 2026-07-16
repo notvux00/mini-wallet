@@ -502,6 +502,10 @@ module.exports = {
         await session.endSession();
       }
 
+      // Xoá cache Services để Customer tải lại
+      await RedisService.del('CACHE:CUSTOMER:SERVICES');
+      await RedisService.del('CACHE:ENGINE:SERVICE_CONFIG:' + serviceId);
+
       return res.ok(null, 'Lưu cấu hình Dịch vụ thành công!');
     } catch (error) {
       sails.log.error('Lỗi lưu cấu hình dịch vụ:', error);
@@ -643,6 +647,10 @@ module.exports = {
         await session.endSession();
       }
 
+      // Xoá cache Services để Customer tải lại
+      await RedisService.del('CACHE:CUSTOMER:SERVICES');
+      await RedisService.del('CACHE:ENGINE:SERVICE_CONFIG:' + id);
+
       return res.ok(null, 'Cập nhật cấu hình Dịch vụ thành công!');
     } catch (error) {
       sails.log.error('Lỗi cập nhật cấu hình dịch vụ:', error);
@@ -666,6 +674,10 @@ module.exports = {
       const message = newStatus === 'inactive'
         ? 'Dịch vụ đã được tạm ngưng. Bạn có thể chỉnh sửa cấu hình.'
         : 'Dịch vụ đã được kích hoạt trở lại.';
+
+      // Xoá cache Services để Customer tải lại
+      await RedisService.del('CACHE:CUSTOMER:SERVICES');
+      await RedisService.del('CACHE:ENGINE:SERVICE_CONFIG:' + id);
 
       return res.ok({ id, status: newStatus }, message);
     } catch (error) {
